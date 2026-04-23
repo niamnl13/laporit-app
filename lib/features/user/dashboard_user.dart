@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:laporit_app/core/constants/app_colors.dart';
-
+import 'package:laporit_app/features/user/add_laporan_baru.dart';
 
 class DashboardUser extends StatefulWidget {
   const DashboardUser({super.key});
@@ -83,8 +83,14 @@ class _DashboardUserState extends State<DashboardUser> {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
+                    // TODO : Navigasi buat ke laporan baru
                     onPressed: () {
-                      // TODO: Navigasi ke Buat Laporan
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AddLaporanBaru(),
+                        ),
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00B4D8),
