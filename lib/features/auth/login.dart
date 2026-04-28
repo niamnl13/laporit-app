@@ -1,6 +1,12 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
 import 'package:laporit_app/core/constants/app_colors.dart';
+import 'package:laporit_app/core/constants/app_constants.dart';
+import 'package:laporit_app/features/user/dashboard_user.dart';
+import 'package:laporit_app/features/admin/dashboard_admin.dart';
+import 'package:laporit_app/features/operator/dashboard_operator.dart';
 import 'package:laporit_app/features/user/main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -15,15 +21,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
-  bool _rememberMe = false; // ← Tambahan
+  bool _rememberMe = false;
 
   @override
   void initState() {
     super.initState();
-    _loadSavedCredentials(); // ← Load data tersimpan saat buka app
+    _loadSavedCredentials();
   }
 
-  // ── Load kredensial yang tersimpan ──
   Future<void> _loadSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     final rememberMe = prefs.getBool('remember_me') ?? false;
@@ -36,7 +41,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     }
   }
 
-  // ── Simpan atau hapus kredensial ──
   Future<void> _saveCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     if (_rememberMe) {
@@ -55,6 +59,70 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _login() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      _showSnackBar('Mohon lengkapi data!', AppColors.error);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _saveCredentials();
+
+      final response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}/login'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': _emailController.text,
+          'password': _passwordController.text,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        final role = data['user']['role'];
+        final name = data['user']['name'];
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', data['token']);
+        await prefs.setString('role', role);
+        await prefs.setString('name', name);
+
+        _showSnackBar('Login berhasil!', AppColors.success);
+
+        if (!mounted) return;
+
+        if (role == 'admin') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const DashboardAdmin()),
+          );
+        } else if (role == 'operator') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const DashboardOperator()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const MainScreen ()),
+          );
+        }
+      } else {
+        _showSnackBar(data['message'] ?? 'Login gagal', AppColors.error);
+      }
+    } catch (e) {
+      _showSnackBar('Password atau Username Salah', AppColors.error);
+    }
+
+    setState(() => _isLoading = false);
   }
 
   void _showSnackBar(String message, Color color) {
@@ -125,7 +193,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
                   const SizedBox(height: 24),
 
-                  // Title
                   const Text(
                     "Lapor IT",
                     style: TextStyle(
@@ -171,7 +238,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     ),
                     child: Column(
                       children: [
-                        // Email/NIP Field
+                        // Email Field
                         TextField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
@@ -181,18 +248,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                 color: AppColors.primary),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide:
-                                  BorderSide(color: Colors.grey.shade300),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide:
-                                  BorderSide(color: Colors.grey.shade300),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                  color: AppColors.primary, width: 2),
+                              borderSide: BorderSide(color: AppColors.primary, width: 2),
                             ),
                             filled: true,
                             fillColor: Colors.grey[50],
@@ -221,18 +285,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide:
-                                  BorderSide(color: Colors.grey.shade300),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide:
-                                  BorderSide(color: Colors.grey.shade300),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                  color: AppColors.primary, width: 2),
+                              borderSide: BorderSide(color: AppColors.primary, width: 2),
                             ),
                             filled: true,
                             fillColor: Colors.grey[50],
@@ -241,11 +302,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
                         const SizedBox(height: 12),
 
-                        // ── Remember Me + Lupa Password ──
+                        // Remember Me + Lupa Password
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Checkbox Remember Me
                             Row(
                               children: [
                                 SizedBox(
@@ -273,8 +333,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                 ),
                               ],
                             ),
-
-                            // Lupa Password
                             TextButton(
                               onPressed: () => _showSnackBar(
                                   'Fitur coming soon!', AppColors.accent),
@@ -291,37 +349,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
                         const SizedBox(height: 20),
 
-                        // Tombol Masuk
+                        // Button Login
                         SizedBox(
                           width: double.infinity,
                           height: 60,
                           child: ElevatedButton(
-                            onPressed: _isLoading
-                                ? null
-                                : () async {
-                                    if (_emailController.text.isEmpty ||
-                                        _passwordController.text.isEmpty) {
-                                      _showSnackBar(
-                                          'Mohon lengkapi Email/NIP dan Password!',
-                                          AppColors.error);
-                                      return;
-                                    }
-
-                                    setState(() => _isLoading = true);
-
-                                    // Simpan kredensial jika remember me aktif
-                                    await _saveCredentials();
-
-                                    if (!mounted) return;
-
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const MainScreen(),
-                                      ),
-                                    );
-                                  },
+                            onPressed: _isLoading ? null : _login,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
@@ -332,16 +365,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               ),
                             ),
                             child: _isLoading
-                                ? Row(
+                                ? const Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    children: const [
+                                    children: [
                                       SizedBox(
                                         width: 20,
                                         height: 20,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation(Colors.white),
+                                          valueColor: AlwaysStoppedAnimation(Colors.white),
                                         ),
                                       ),
                                       SizedBox(width: 12),

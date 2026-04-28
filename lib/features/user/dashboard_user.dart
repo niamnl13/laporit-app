@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:laporit_app/core/constants/app_colors.dart';
 import 'package:laporit_app/features/user/add_laporan_baru.dart';
-import 'package:laporit_app/features/user/daftar_laporan_saya.dart';
 import 'package:laporit_app/features/user/notifikasi_screen.dart';
+import 'package:laporit_app/features/user/daftar_laporan_saya.dart'; 
 
 class DashboardUser extends StatefulWidget {
   const DashboardUser({super.key});
@@ -199,7 +199,6 @@ class _DashboardUserState extends State<DashboardUser> {
                 ),
                 GestureDetector(
                   onTap: () {
-                    // Switch ke tab Laporan (index 1) di MainScreen
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -253,6 +252,7 @@ class _DashboardUserState extends State<DashboardUser> {
           ],
         ),
       ),
+
     );
   }
 
@@ -362,7 +362,8 @@ class _DashboardUserState extends State<DashboardUser> {
           ),
           const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: statusColor.withOpacity(0.12),
               borderRadius: BorderRadius.circular(20),

@@ -121,7 +121,7 @@ class ProfilScreen extends StatelessWidget {
 
                 // ── Version ──
                 const Text(
-                  "V 2.4.0 (Build 124)  •  PT Teknologi Pemerintahan",
+                  "V 2.4.0 (Build 124)  •  BPS Kab Deli Serdang",
                   style: TextStyle(
                     fontSize: 11,
                     color: Color(0xFFB4B2A9),

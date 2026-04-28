@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:laporit_app/core/constants/app_colors.dart';
-import 'package:laporit_app/features/user/add_laporan_baru.dart';
 import 'package:laporit_app/features/user/detail_laporan.dart';
 import 'package:laporit_app/features/user/notifikasi_screen.dart';
 
@@ -114,89 +113,91 @@ class _DaftarLaporanSayaState extends State<DaftarLaporanSaya> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Tidak pakai Scaffold — sudah ada di MainScreen
-    return Column(
-      children: [
-        // ── Header Navy ──
-        _buildHeader(),
+    // ✅ Tidak pakai Scaffold — sudah diurus MainScreen
+    return ColoredBox(
+      color: const Color(0xFFF5F6FA),
+      child: Column(
+        children: [
+          // ── Header Navy ──
+          _buildHeader(),
 
-        // ── Body scrollable ──
-        Expanded(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Stat Cards
-                _buildStatCards(),
+          // ── Body scrollable ──
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Stat Cards
+                  _buildStatCards(),
 
-                // Section title
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "RIWAYAT LAPORAN TERBARU",
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF888780),
-                          letterSpacing: 0.06 * 11,
+                  // Section title
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "RIWAYAT LAPORAN TERBARU",
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF888780),
+                            letterSpacing: 0.06 * 11,
+                          ),
                         ),
-                      ),
-                      Text(
-                        "Lihat semua",
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.primary,
+                        Text(
+                          "Lihat semua",
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.primary,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
-                // List laporan
-                _filteredLaporan.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                        itemCount: _filteredLaporan.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          return _buildLaporanCard(
-                              _filteredLaporan[index], context);
-                        },
-                      ),
-              ],
+                  // List laporan
+                  _filteredLaporan.isEmpty
+                      ? _buildEmptyState()
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                          itemCount: _filteredLaporan.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 10),
+                          itemBuilder: (context, index) {
+                            return _buildLaporanCard(
+                                _filteredLaporan[index], context);
+                          },
+                        ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
-    // ✅ Tidak ada floatingActionButton — sudah dipindah ke MainScreen
+    // ✅ FAB & bottomNav diurus MainScreen
   }
 
   // ─────────────────────────────────────────
   //  HEADER (navy background menyatu)
   // ─────────────────────────────────────────
   Widget _buildHeader() {
-    return Container(
+    return Material(
       color: const Color(0xFF1A2744),
       child: SafeArea(
         bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // AppBar row — TANPA tombol back
+            // AppBar row
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
               child: Row(
                 children: [
-                  // ✅ Tombol back dihapus — sudah jadi tab
                   const Expanded(
                     child: Text(
                       "Laporan Saya",
@@ -207,7 +208,6 @@ class _DaftarLaporanSayaState extends State<DaftarLaporanSaya> {
                       ),
                     ),
                   ),
-                  // Notif button
                   GestureDetector(
                     onTap: () => Navigator.push(
                       context,
@@ -332,7 +332,6 @@ class _DaftarLaporanSayaState extends State<DaftarLaporanSaya> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Row(
         children: [
-          // Total laporan — navy
           Expanded(
             child: Container(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
@@ -372,7 +371,6 @@ class _DaftarLaporanSayaState extends State<DaftarLaporanSaya> {
             ),
           ),
           const SizedBox(width: 10),
-          // Berhasil selesai — mint
           Expanded(
             child: Container(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
@@ -452,7 +450,6 @@ class _DaftarLaporanSayaState extends State<DaftarLaporanSaya> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Baris 1: ID + badge status
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -485,7 +482,6 @@ class _DaftarLaporanSayaState extends State<DaftarLaporanSaya> {
 
           const SizedBox(height: 8),
 
-          // Judul
           Text(
             laporan["judul"],
             style: const TextStyle(
@@ -498,7 +494,6 @@ class _DaftarLaporanSayaState extends State<DaftarLaporanSaya> {
 
           const SizedBox(height: 8),
 
-          // Meta: kategori + tanggal
           Row(
             children: [
               const Icon(Icons.account_tree_outlined,
@@ -528,7 +523,6 @@ class _DaftarLaporanSayaState extends State<DaftarLaporanSaya> {
           Divider(color: Colors.grey.shade100, height: 1, thickness: 0.5),
           const SizedBox(height: 10),
 
-          // Footer: prioritas + lihat detail
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
