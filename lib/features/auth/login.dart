@@ -1,6 +1,13 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:flutter/material.dart';
 import 'package:laporit_app/core/constants/app_colors.dart';
+import 'package:laporit_app/core/constants/app_constants.dart'; // ← tambah
 import 'package:laporit_app/features/user/dashboard_user.dart';
+import 'package:laporit_app/features/admin/dashboard_admin.dart';
+import 'package:laporit_app/features/operator/dashboard_operator.dart';
 
 
 class LoginScreen extends StatefulWidget {
@@ -28,32 +35,62 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       _showSnackBar('Mohon lengkapi data!', AppColors.error);
       return;
     }
-
+    
     setState(() => _isLoading = true);
-
-    // Simulate API (ganti dengan real API nanti)
-    await Future.delayed(Duration(seconds: 2));
-
-    setState(() => _isLoading = false);
-
-    if (_emailController.text == 'admin@laporit.com' && 
-        _passwordController.text == '123456') {
-      // TODO: Navigasi ke HomeScreen
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Login berhasil!'),
-            ],
-          ),
-          backgroundColor: AppColors.success,
-        ),
+    
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}/login'), // ← pakai AppConstants
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': _emailController.text,
+          'password': _passwordController.text,
+        }),
       );
-    } else {
-      _showSnackBar('Email/NIP atau password salah!', AppColors.error);
+      
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        final role = data['user']['role'];
+        final name = data['user']['name']; // ← ambil nama
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', data['token']);
+        await prefs.setString('role', role);
+        await prefs.setString('name', name); // ← simpan nama
+
+        _showSnackBar('Login berhasil!', AppColors.success);
+
+        if (!mounted) return;
+
+        if (role == 'admin') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const DashboardAdmin()),
+          );
+        } else if (role == 'operator') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const DashboardOperator()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const DashboardUser()),
+          );
+        }
+
+      } else {
+        _showSnackBar(data['message'] ?? 'Login gagal', AppColors.error);
+      }
+    } catch (e) {
+      _showSnackBar('Terjadi kesalahan koneksi', AppColors.error);
     }
+    
+    setState(() => _isLoading = false);
   }
 
   void _showSnackBar(String message, Color color) {
@@ -93,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
                   // Animated Logo
                   TweenAnimationBuilder(
-                    duration: Duration(milliseconds: 1000),
+                    duration: const Duration(milliseconds: 1000),
                     tween: Tween<double>(begin: 0, end: 1),
                     builder: (context, double value, child) {
                       return Transform.scale(
@@ -134,7 +171,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       letterSpacing: 1.2,
                     ),
                   ),
-                  Text(
+                  const Text(
                     "Sistem Pelaporan Kerusakan IT",
                     style: TextStyle(
                       fontSize: 16,
@@ -145,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
                   const SizedBox(height: 50),
 
-                  // Glassmorphism Card
+                  // Card
                   Container(
                     padding: const EdgeInsets.all(28),
                     decoration: BoxDecoration(
@@ -170,14 +207,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     ),
                     child: Column(
                       children: [
-                        // Email/NIP Field
+                        // Email Field
                         TextField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
                             labelText: "EMAIL ATAU NIP",
-                            hintText: "",
-                            prefixIcon: Icon(Icons.person_outline, 
+                            prefixIcon: Icon(Icons.person_outline,
                                 color: AppColors.primary),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
@@ -189,7 +225,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(color: AppColors.primary, width: 2),
+                              borderSide:
+                                  BorderSide(color: AppColors.primary, width: 2),
                             ),
                             filled: true,
                             fillColor: Colors.grey[50],
@@ -204,17 +241,17 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                           obscureText: _obscurePassword,
                           decoration: InputDecoration(
                             labelText: "PASSWORD",
-                            hintText: "",
-                            prefixIcon: Icon(Icons.lock_outline, 
+                            prefixIcon: Icon(Icons.lock_outline,
                                 color: AppColors.primary),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _obscurePassword 
-                                  ? Icons.visibility_off : Icons.visibility,
+                                _obscurePassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
                                 color: AppColors.primary,
                               ),
-                              onPressed: () => setState(() => 
-                                  _obscurePassword = !_obscurePassword),
+                              onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
@@ -226,7 +263,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(color: AppColors.primary, width: 2),
+                              borderSide:
+                                  BorderSide(color: AppColors.primary, width: 2),
                             ),
                             filled: true,
                             fillColor: Colors.grey[50],
@@ -238,7 +276,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
-                            onPressed: () => _showSnackBar('Fitur coming soon!', AppColors.accent),
+                            onPressed: () =>
+                                _showSnackBar('Fitur coming soon!', AppColors.accent),
                             child: Text(
                               "Lupa Password?",
                               style: TextStyle(
@@ -251,30 +290,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
                         const SizedBox(height: 28),
 
-                        // Button
+                        // Button Login
                         SizedBox(
                           width: double.infinity,
                           height: 60,
                           child: ElevatedButton(
-                            onPressed: _isLoading 
-                            ? null 
-                            : () async{
-                              // validasi
-                              if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-                                _showSnackBar('Mohon lengkapi Email/NIP dan Password!', AppColors.error);
-                                return;
-                              }
-                              
-                              setState(() => _isLoading = true);
-                              // Navigasi ke dashboard user
-                              Navigator.pushReplacement(
-                                context, 
-                                MaterialPageRoute(
-                                  builder: (context) => const DashboardUser(),
-                                ),
-                              );
-                            },
-
+                            onPressed: _isLoading ? null : _login,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
@@ -285,7 +306,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               ),
                             ),
                             child: _isLoading
-                                ? Row(
+                                ? const Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       SizedBox(
@@ -293,14 +314,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                         height: 20,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation(Colors.white),
+                                          valueColor: AlwaysStoppedAnimation(
+                                              Colors.white),
                                         ),
                                       ),
                                       SizedBox(width: 12),
                                       Text('Memproses...'),
                                     ],
                                   )
-                                : Text(
+                                : const Text(
                                     "MASUK",
                                     style: TextStyle(
                                       fontSize: 18,
@@ -320,10 +342,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text("Kendala akses? ", 
+                      const Text("Kendala akses? ",
                           style: TextStyle(color: Colors.white70)),
                       GestureDetector(
-                        onTap: () => _showSnackBar('WhatsApp: 0812-3456-7890', AppColors.accent),
+                        onTap: () => _showSnackBar(
+                            'WhatsApp: 0812-3456-7890', AppColors.accent),
                         child: Text(
                           "Hubungi Admin",
                           style: TextStyle(
@@ -338,10 +361,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
                   const SizedBox(height: 24),
 
-                  Text(
+                  const Text(
                     "Badan Pusat Statistik Deli Serdang",
                     style: TextStyle(
-                      fontSize: 12, 
+                      fontSize: 12,
                       color: Colors.white54,
                       fontWeight: FontWeight.w500,
                       letterSpacing: 1,
