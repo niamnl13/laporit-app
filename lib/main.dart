@@ -3,6 +3,7 @@ import 'package:laporit_app/core/router/app_router.dart';
 import 'package:laporit_app/features/auth/login.dart';
 import 'package:laporit_app/features/user/dashboard_user.dart';
 import 'package:laporit_app/features/user/add_laporan_baru.dart';
+import 'package:laporit_app/features/user/main_screen.dart';
 
 void main() {
   runApp(const MyApp());

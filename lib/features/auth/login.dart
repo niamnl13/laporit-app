@@ -1,14 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:flutter/material.dart';
 import 'package:laporit_app/core/constants/app_colors.dart';
-import 'package:laporit_app/core/constants/app_constants.dart'; // ← tambah
+import 'package:laporit_app/core/constants/app_constants.dart';
 import 'package:laporit_app/features/user/dashboard_user.dart';
 import 'package:laporit_app/features/admin/dashboard_admin.dart';
 import 'package:laporit_app/features/operator/dashboard_operator.dart';
-
+import 'package:laporit_app/features/user/main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,6 +21,38 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rememberMe = prefs.getBool('remember_me') ?? false;
+    if (rememberMe) {
+      setState(() {
+        _rememberMe = true;
+        _emailController.text = prefs.getString('saved_email') ?? '';
+        _passwordController.text = prefs.getString('saved_password') ?? '';
+      });
+    }
+  }
+
+  Future<void> _saveCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_rememberMe) {
+      await prefs.setBool('remember_me', true);
+      await prefs.setString('saved_email', _emailController.text);
+      await prefs.setString('saved_password', _passwordController.text);
+    } else {
+      await prefs.remove('remember_me');
+      await prefs.remove('saved_email');
+      await prefs.remove('saved_password');
+    }
+  }
 
   @override
   void dispose() {
@@ -35,12 +66,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       _showSnackBar('Mohon lengkapi data!', AppColors.error);
       return;
     }
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
+      await _saveCredentials();
+
       final response = await http.post(
-        Uri.parse('${AppConstants.baseUrl}/login'), // ← pakai AppConstants
+        Uri.parse('${AppConstants.baseUrl}/login'),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -50,17 +83,17 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           'password': _passwordController.text,
         }),
       );
-      
+
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
         final role = data['user']['role'];
-        final name = data['user']['name']; // ← ambil nama
+        final name = data['user']['name'];
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', data['token']);
         await prefs.setString('role', role);
-        await prefs.setString('name', name); // ← simpan nama
+        await prefs.setString('name', name);
 
         _showSnackBar('Login berhasil!', AppColors.success);
 
@@ -79,17 +112,16 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         } else {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const DashboardUser()),
+            MaterialPageRoute(builder: (_) => const MainScreen ()),
           );
         }
-
       } else {
         _showSnackBar(data['message'] ?? 'Login gagal', AppColors.error);
       }
     } catch (e) {
-      _showSnackBar('Terjadi kesalahan koneksi', AppColors.error);
+      _showSnackBar('Password atau Username Salah', AppColors.error);
     }
-    
+
     setState(() => _isLoading = false);
   }
 
@@ -161,7 +193,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
                   const SizedBox(height: 24),
 
-                  // Title
                   const Text(
                     "Lapor IT",
                     style: TextStyle(
@@ -182,7 +213,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
                   const SizedBox(height: 50),
 
-                  // Card
+                  // Card Login
                   Container(
                     padding: const EdgeInsets.all(28),
                     decoration: BoxDecoration(
@@ -225,8 +256,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide:
-                                  BorderSide(color: AppColors.primary, width: 2),
+                              borderSide: BorderSide(color: AppColors.primary, width: 2),
                             ),
                             filled: true,
                             fillColor: Colors.grey[50],
@@ -263,8 +293,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide:
-                                  BorderSide(color: AppColors.primary, width: 2),
+                              borderSide: BorderSide(color: AppColors.primary, width: 2),
                             ),
                             filled: true,
                             fillColor: Colors.grey[50],
@@ -273,22 +302,52 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
                         const SizedBox(height: 12),
 
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () =>
-                                _showSnackBar('Fitur coming soon!', AppColors.accent),
-                            child: Text(
-                              "Lupa Password?",
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
+                        // Remember Me + Lupa Password
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: Checkbox(
+                                    value: _rememberMe,
+                                    onChanged: (value) {
+                                      setState(() => _rememberMe = value ?? false);
+                                    },
+                                    activeColor: AppColors.primary,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Ingat Saya",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[700],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            TextButton(
+                              onPressed: () => _showSnackBar(
+                                  'Fitur coming soon!', AppColors.accent),
+                              child: Text(
+                                "Lupa Password?",
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
 
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 20),
 
                         // Button Login
                         SizedBox(
@@ -314,8 +373,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                         height: 20,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation(
-                                              Colors.white),
+                                          valueColor: AlwaysStoppedAnimation(Colors.white),
                                         ),
                                       ),
                                       SizedBox(width: 12),

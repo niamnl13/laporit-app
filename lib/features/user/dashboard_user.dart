@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:laporit_app/core/constants/app_colors.dart';
 import 'package:laporit_app/features/user/add_laporan_baru.dart';
+import 'package:laporit_app/features/user/notifikasi_screen.dart';
+import 'package:laporit_app/features/user/daftar_laporan_saya.dart'; 
 
 class DashboardUser extends StatefulWidget {
   const DashboardUser({super.key});
@@ -17,6 +19,7 @@ class _DashboardUserState extends State<DashboardUser> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: Row(
           children: [
             const CircleAvatar(
@@ -29,13 +32,13 @@ class _DashboardUserState extends State<DashboardUser> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Halo,",
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                  "Selamat Pagi,",
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
                 ),
                 Text(
-                  "Andika",
+                  "Andi",
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 17,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
                   ),
@@ -47,7 +50,12 @@ class _DashboardUserState extends State<DashboardUser> {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined, color: Colors.black87),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotifikasiScreen()),
+              );
+            },
           ),
           const SizedBox(width: 8),
         ],
@@ -57,7 +65,7 @@ class _DashboardUserState extends State<DashboardUser> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Kartu "Ada Kendala IT?"
+            // ── Banner "Ada Kendala IT?" ──
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -82,27 +90,28 @@ class _DashboardUserState extends State<DashboardUser> {
                     style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                   const SizedBox(height: 16),
-                  ElevatedButton(
-                    // TODO : Navigasi buat ke laporan baru
+                  ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const AddLaporanBaru(),
-                        ),
+                            builder: (context) => const AddLaporanBaru()),
                       );
                     },
+                    icon: const Icon(Icons.add_circle_outline,
+                        size: 18, color: Colors.white),
+                    label: const Text(
+                      "Buat Laporan Baru",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00B4D8),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(30),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    ),
-                    child: const Text(
-                      "Buat Laporan Baru",
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
                     ),
                   ),
                 ],
@@ -111,75 +120,114 @@ class _DashboardUserState extends State<DashboardUser> {
 
             const SizedBox(height: 24),
 
-            // Statistik Total Laporan
+            // ── Statistik ──
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
                   "TOTAL LAPORAN SAYA",
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
+                    letterSpacing: 0.3,
                   ),
                 ),
-                const Spacer(),
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: Colors.blue.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.insert_chart_outlined, color: Colors.blue),
+                  child: const Icon(Icons.insert_chart_outlined,
+                      color: Colors.blue, size: 20),
                 ),
               ],
             ),
             const SizedBox(height: 12),
 
-            Row(
-              children: [
-                _buildStatCard("TOTAL LAPORAN SAYA", "18", Colors.blue),
-                const SizedBox(width: 12),
-                _buildStatCard("SEDANG DIPROSES", "3", const Color(0xFF00B4D8)),
-              ],
+            // Total besar
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade100, width: 0.5),
+              ),
+              child: const Text(
+                "18",
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                  height: 1,
+                ),
+              ),
             ),
-            const SizedBox(height: 12),
+
+            const SizedBox(height: 10),
+
+            // Sedang diproses + Selesai bulan ini
             Row(
               children: [
-                _buildStatCard("SELESAI BULAN INI", "12", Colors.green),
-                const SizedBox(width: 12),
-                _buildStatCard(" ", " ", Colors.transparent), // placeholder
+                _buildStatCard(
+                  icon: Icons.sync,
+                  iconColor: const Color(0xFF00B4D8),
+                  label: "SEDANG DIPROSES",
+                  value: "3",
+                ),
+                const SizedBox(width: 10),
+                _buildStatCard(
+                  icon: Icons.check_circle_outline,
+                  iconColor: Colors.green,
+                  label: "SELESAI BULAN INI",
+                  value: "12",
+                ),
               ],
             ),
 
             const SizedBox(height: 28),
 
-            // Laporan Terbaru
+            // ── Laporan Terkini ──
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  "Laporan Terbaru",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  "Laporan Terkini",
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                 ),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text("Lihat Semua"),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const DaftarLaporanSaya()),
+                    );
+                  },
+                  child: Text(
+                    "Lihat Semua",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
                 ),
               ],
             ),
 
             const SizedBox(height: 12),
 
-            // List Laporan Terbaru
             _buildRecentTicket(
               icon: Icons.monitor,
-              title: "Monitor Berkedip (BT-204)",
+              title: "Monitor Berkedip (IT-204)",
               subtitle: "Monitor di ruang 402 berkedip selama 8...",
               time: "2 menit yang lalu",
               status: "Pending",
               statusColor: Colors.orange,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
             _buildRecentTicket(
               icon: Icons.wifi,
@@ -189,7 +237,7 @@ class _DashboardUserState extends State<DashboardUser> {
               status: "Diproses",
               statusColor: const Color(0xFF00B4D8),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
             _buildRecentTicket(
               icon: Icons.print,
@@ -199,68 +247,59 @@ class _DashboardUserState extends State<DashboardUser> {
               status: "Selesai",
               statusColor: Colors.green,
             ),
+
+            const SizedBox(height: 100),
           ],
         ),
       ),
 
-      // Bottom Navigation
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: "Beranda",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment_outlined),
-            label: "Laporan",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: "Riwayat",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: "Profil",
-          ),
-        ],
-      ),
     );
   }
 
-  // Widget untuk Statistik Card
-  Widget _buildStatCard(String title, String value, Color color) {
+  // ── Stat Card dengan icon ──
+  Widget _buildStatCard({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+  }) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
+          border: Border.all(color: Colors.grey.shade100, width: 0.5),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 16),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 4),
             Text(
               value,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: color,
+                color: Colors.black87,
+                height: 1,
               ),
             ),
           ],
@@ -269,7 +308,7 @@ class _DashboardUserState extends State<DashboardUser> {
     );
   }
 
-  // Widget untuk Laporan Terbaru
+  // ── Recent Ticket Card ──
   Widget _buildRecentTicket({
     required IconData icon,
     required String title,
@@ -279,17 +318,11 @@ class _DashboardUserState extends State<DashboardUser> {
     required Color statusColor,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: Colors.grey.shade100, width: 0.5),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,51 +333,49 @@ class _DashboardUserState extends State<DashboardUser> {
               color: Colors.grey[100],
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: Colors.black87, size: 28),
+            child: Icon(icon, color: Colors.black87, size: 24),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 14),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   subtitle,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13, color: Colors.grey),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   time,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
                 ),
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  status,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                  ),
-                ),
+          const SizedBox(width: 8),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              status,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: statusColor,
               ),
-            ],
+            ),
           ),
         ],
       ),
