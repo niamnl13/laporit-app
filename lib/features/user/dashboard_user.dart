@@ -3,6 +3,8 @@ import 'package:laporit_app/core/constants/app_colors.dart';
 import 'package:laporit_app/features/user/add_laporan_baru.dart';
 import 'package:laporit_app/features/user/notifikasi_screen.dart';
 import 'package:laporit_app/features/user/daftar_laporan_saya.dart'; 
+import 'package:laporit_app/core/services/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DashboardUser extends StatefulWidget {
   const DashboardUser({super.key});
@@ -12,6 +14,62 @@ class DashboardUser extends StatefulWidget {
 }
 
 class _DashboardUserState extends State<DashboardUser> {
+  String _userName = 'User';
+  bool _isLoading = true;
+  List<dynamic> _reports = [];
+
+  int get _total => _reports.length;
+  int get _diproses => _reports.where((r) => r['status'] == 'proses').length;
+  int get _selesai => _reports.where((r) {
+    if (r['status'] != 'selesai') return false;
+    final tgl = r['tgl_eksekusi']?.toString();
+    if (tgl == null) return false;
+    final now = DateTime.now();
+    final eksekusi = DateTime.tryParse(tgl);
+    if (eksekusi == null) return false;
+    return eksekusi.month == now.month && eksekusi.year == now.year;
+  }).length;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final name = prefs.getString('name') ?? 'User';
+      final reports = await ApiService.getMyReports();
+      setState(() {
+        _userName = name;
+        _reports = reports;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'proses': return 'Diproses';
+      case 'selesai': return 'Selesai';
+      case 'ditolak': return 'Ditolak';
+      default: return 'Pending';
+    }
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'proses': return const Color(0xFF00B4D8);
+      case 'selesai': return Colors.green;
+      case 'ditolak': return Colors.red;
+      default: return Colors.orange;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -28,16 +86,18 @@ class _DashboardUserState extends State<DashboardUser> {
               child: Icon(Icons.person, color: Colors.white),
             ),
             const SizedBox(width: 12),
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   "Selamat Pagi,",
-                  style: TextStyle(fontSize: 13, color: Colors.grey),
-                ),
-                Text(
-                  "Andi",
                   style: TextStyle(
+                    fontSize: 13, 
+                    color: Colors.grey),
+                  ),
+                Text(
+                  _userName,
+                  style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
@@ -60,63 +120,67 @@ class _DashboardUserState extends State<DashboardUser> {
           const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Banner "Ada Kendala IT?" ──
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0A2647),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Ada Kendala IT?",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    "Laporkan masalah perangkat\natau jaringan Anda sekarang.",
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const AddLaporanBaru()),
-                      );
-                    },
-                    icon: const Icon(Icons.add_circle_outline,
-                        size: 18, color: Colors.white),
-                    label: const Text(
-                      "Buat Laporan Baru",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00B4D8),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Banner "Ada Kendala IT?" ──
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A2647),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Ada Kendala IT?",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    const Text(
+                      "Laporkan masalah perangkat\natau jaringan Anda sekarang.",
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        await Navigator.push( // await untuk refresh setelah kembali
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const AddLaporanBaru()),
+                        );
+                        _loadData(); // refresh data setelah kembali dari form laporan baru
+                      },
+                      icon: const Icon(Icons.add_circle_outline,
+                          size: 18, color: Colors.white),
+                      label: const Text(
+                        "Buat Laporan Baru",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00B4D8),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
 
             const SizedBox(height: 24),
 
@@ -155,8 +219,8 @@ class _DashboardUserState extends State<DashboardUser> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.grey.shade100, width: 0.5),
               ),
-              child: const Text(
-                "18",
+              child: Text(
+                _isLoading ? '...' : '$_total',
                 style: TextStyle(
                   fontSize: 36,
                   fontWeight: FontWeight.bold,
@@ -167,22 +231,22 @@ class _DashboardUserState extends State<DashboardUser> {
             ),
 
             const SizedBox(height: 10),
-
+            
             // Sedang diproses + Selesai bulan ini
             Row(
               children: [
                 _buildStatCard(
                   icon: Icons.sync,
                   iconColor: const Color(0xFF00B4D8),
-                  label: "SEDANG DIPROSES",
-                  value: "3",
+                  label: "SEDANG DIPROSES ",
+                  value: _isLoading ? '...' : '$_diproses',
                 ),
                 const SizedBox(width: 10),
                 _buildStatCard(
                   icon: Icons.check_circle_outline,
                   iconColor: Colors.green,
                   label: "SELESAI BULAN INI",
-                  value: "12",
+                  value: _isLoading ? '...' : '$_selesai',
                 ),
               ],
             ),
@@ -219,41 +283,50 @@ class _DashboardUserState extends State<DashboardUser> {
 
             const SizedBox(height: 12),
 
-            _buildRecentTicket(
-              icon: Icons.monitor,
-              title: "Monitor Berkedip (IT-204)",
-              subtitle: "Monitor di ruang 402 berkedip selama 8...",
-              time: "2 menit yang lalu",
-              status: "Pending",
-              statusColor: Colors.orange,
-            ),
-            const SizedBox(height: 10),
-
-            _buildRecentTicket(
-              icon: Icons.wifi,
-              title: "Koneksi VPN Lambat",
-              subtitle: "Koneksi VPN sering putus-putus",
-              time: "Kemarin, 12:21",
-              status: "Diproses",
-              statusColor: const Color(0xFF00B4D8),
-            ),
-            const SizedBox(height: 10),
-
-            _buildRecentTicket(
-              icon: Icons.print,
-              title: "Update Driver Printer",
-              subtitle: "Akses database sudah diizinkan tetapi tetap...",
-              time: "2 hari yang lalu",
-              status: "Selesai",
-              statusColor: Colors.green,
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (_reports.isEmpty)
+              const Center(
+                child: Text('Belum ada laporan',
+                style: TextStyle(color: Colors.grey)),
+              )
+            else
+              ..._reports.take(3).map((r) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _buildRecentTicket(
+                  icon: _getIcon(r['jenis_kerusakan'] ?? ''),
+                  title: r['jenis_kerusakan'] ?? '-',
+                  subtitle: r['deskripsi'] ?? '-',
+                  time: r['created_at']?.toString().substring(0, 10) ?? '-',
+                  status: _statusLabel(r['status'] ?? 'pending'),
+                  statusColor: _statusColor(r['status'] ?? 'pending'),
+                ),
+              )
             ),
 
             const SizedBox(height: 100),
           ],
         ),
       ),
-
+      ),
     );
+  }
+
+  IconData _getIcon(String jenis) {
+    final j = jenis.toLowerCase();
+    if (j.contains('jaringan') || j.contains('wifi') || j.contains('vpn')) {
+      return Icons.wifi;
+    } else if (j.contains('printer') || j.contains('scanner')) {
+      return Icons.print;
+    } else if (j.contains('komputer') || j.contains('monitor') || j.contains('laptop')) {
+      return Icons.monitor;
+    } else if (j.contains('server')) {
+      return Icons.dns;
+    } else if (j.contains('software') || j.contains('email') || j.contains('office')) {
+      return Icons.computer;
+    } else {
+      return Icons.build_outlined;
+    }
   }
 
   // ── Stat Card dengan icon ──

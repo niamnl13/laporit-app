@@ -243,7 +243,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
-                            labelText: "EMAIL ATAU NIP",
+                            labelText: "Email",
                             prefixIcon: Icon(Icons.person_outline,
                                 color: AppColors.primary),
                             border: OutlineInputBorder(
@@ -270,7 +270,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                           controller: _passwordController,
                           obscureText: _obscurePassword,
                           decoration: InputDecoration(
-                            labelText: "PASSWORD",
+                            labelText: "Password",
                             prefixIcon: Icon(Icons.lock_outline,
                                 color: AppColors.primary),
                             suffixIcon: IconButton(

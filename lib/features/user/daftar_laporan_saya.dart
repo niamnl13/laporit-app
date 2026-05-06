@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:laporit_app/core/constants/app_colors.dart';
 import 'package:laporit_app/features/user/detail_laporan.dart';
 import 'package:laporit_app/features/user/notifikasi_screen.dart';
+import 'package:laporit_app/core/services/api_service.dart';
 
 class DaftarLaporanSaya extends StatefulWidget {
   const DaftarLaporanSaya({super.key});
@@ -13,76 +14,44 @@ class DaftarLaporanSaya extends StatefulWidget {
 class _DaftarLaporanSayaState extends State<DaftarLaporanSaya> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedFilter = "Semua";
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
-  final List<String> _filterList = ["Semua", "Pending", "Diproses", "Selesai"];
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      final reports = await ApiService.getMyReports();
+      setState(() {
+        _allLaporan = reports.map<Map<String, dynamic>>((r) {
+          final status = r['status'] ?? 'pending';
+          return {
+            "id": '#LP-${r['id']}',
+            "judul": r['jenis_kerusakan'] ?? '-',
+            "kategori": r['jenis_kerusakan'] ?? '-',
+            "tanggal": r['created_at']?.toString().substring(0, 10) ?? '-',
+            "status": _statusLabel(status),
+            "statusFilter": _statusFilter(status),
+            "prioritas": (r['priority'] ?? 'normal').toUpperCase(),
+            "statusColor": _statusColor(status),
+            "statusBgColor": _statusBgColor(status),
+            "prioritasColor": _prioritasColor(r['priority'] ?? 'normal'),
+            "prioritasDot": _prioritasDot(r['priority'] ?? 'normal'),
+          };
+        }).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
 
-  final List<Map<String, dynamic>> _allLaporan = [
-    {
-      "id": "#LP-20260408-045",
-      "judul": "Kerusakan Server Backend",
-      "kategori": "Infrastructure",
-      "tanggal": "08 Apr 2026",
-      "status": "Tertunda",
-      "statusFilter": "Pending",
-      "prioritas": "TINGGI",
-      "statusColor": const Color(0xFF633806),
-      "statusBgColor": const Color(0xFFFAEEDA),
-      "prioritasColor": const Color(0xFFA32D2D),
-      "prioritasDot": const Color(0xFFE24B4A),
-    },
-    {
-      "id": "#LP-20260407-012",
-      "judul": "Update Lisensi Software",
-      "kategori": "Software Admin",
-      "tanggal": "07 Apr 2026",
-      "status": "Diproses",
-      "statusFilter": "Diproses",
-      "prioritas": "MENENGAH",
-      "statusColor": const Color(0xFF0C447C),
-      "statusBgColor": const Color(0xFFE6F1FB),
-      "prioritasColor": const Color(0xFF854F0B),
-      "prioritasDot": const Color(0xFFEF9F27),
-    },
-    {
-      "id": "#LP-20260405-088",
-      "judul": "Perbaikan Keyboard Divisi HR",
-      "kategori": "Hardware",
-      "tanggal": "05 Apr 2026",
-      "status": "Selesai",
-      "statusFilter": "Selesai",
-      "prioritas": "RENDAH",
-      "statusColor": const Color(0xFF27500A),
-      "statusBgColor": const Color(0xFFEAF3DE),
-      "prioritasColor": const Color(0xFF888780),
-      "prioritasDot": const Color(0xFFB4B2A9),
-    },
-    {
-      "id": "#LP-20260403-031",
-      "judul": "Printer Macet Lantai 2",
-      "kategori": "Printer / Scanner",
-      "tanggal": "03 Apr 2026",
-      "status": "Selesai",
-      "statusFilter": "Selesai",
-      "prioritas": "MENENGAH",
-      "statusColor": const Color(0xFF27500A),
-      "statusBgColor": const Color(0xFFEAF3DE),
-      "prioritasColor": const Color(0xFF854F0B),
-      "prioritasDot": const Color(0xFFEF9F27),
-    },
-    {
-      "id": "#LP-20260401-019",
-      "judul": "Koneksi VPN Lambat",
-      "kategori": "Kerusakan Jaringan",
-      "tanggal": "01 Apr 2026",
-      "status": "Tertunda",
-      "statusFilter": "Pending",
-      "prioritas": "TINGGI",
-      "statusColor": const Color(0xFF633806),
-      "statusBgColor": const Color(0xFFFAEEDA),
-      "prioritasColor": const Color(0xFFA32D2D),
-      "prioritasDot": const Color(0xFFE24B4A),
-    },
-  ];
+  final List<String> _filterList = ["Semua", "Pending", "Ditolak", "Diproses", "Selesai"];
+
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _allLaporan = [];
 
   List<Map<String, dynamic>> get _filteredLaporan {
     return _allLaporan.where((laporan) {
@@ -104,7 +73,60 @@ class _DaftarLaporanSayaState extends State<DaftarLaporanSaya> {
   int get _totalLaporan => _allLaporan.length;
   int get _selesaiLaporan =>
       _allLaporan.where((l) => l["statusFilter"] == "Selesai").length;
+  
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'proses': return 'Diproses';
+      case 'selesai': return 'Selesai';
+      case 'ditolak': return 'Ditolak';
+      default: return 'Pending';
+    }
+  }
 
+  String _statusFilter(String status) {
+    switch (status) {
+      case 'proses': return 'Diproses';
+      case 'selesai': return 'Selesai';
+      case 'ditolak': return 'Ditolak';
+      default: return 'Pending';
+    }
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'proses': return const Color(0xFF0C447C);
+      case 'selesai': return const Color(0xFF27500A);
+      case 'ditolak': return const Color(0xFFA32D2D);
+      default: return const Color(0xFF633806);
+    }
+  }
+
+  Color _statusBgColor(String status) {
+    switch (status) {
+      case 'proses': return const Color(0xFFE6F1FB);
+      case 'selesai': return const Color(0xFFEAF3DE);
+      case 'ditolak': return const Color(0xFFFFEBEB);
+      default: return const Color(0xFFFAEEDA);
+    }
+  }
+
+  Color _prioritasColor(String priority) {
+    switch (priority) {
+      case 'gawat': return const Color(0xFFA32D2D);
+      case 'tinggi': return const Color(0xFFA32D2D);
+      case 'rendah': return const Color(0xFF888780);
+      default: return const Color(0xFF854F0B);
+    }
+  }
+
+  Color _prioritasDot(String priority) {
+    switch (priority) {
+      case 'gawat': return const Color(0xFFE24B4A);
+      case 'tinggi': return const Color(0xFFE24B4A);
+      case 'rendah': return const Color(0xFFB4B2A9);
+      default: return const Color(0xFFEF9F27);
+    }
+  }
   @override
   void dispose() {
     _searchController.dispose();
@@ -113,15 +135,14 @@ class _DaftarLaporanSayaState extends State<DaftarLaporanSaya> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Tidak pakai Scaffold — sudah diurus MainScreen
     return ColoredBox(
       color: const Color(0xFFF5F6FA),
       child: Column(
         children: [
-          // ── Header Navy ──
+          // Header Navy 
           _buildHeader(),
 
-          // ── Body scrollable ──
+          // Body scrollable
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
@@ -158,20 +179,20 @@ class _DaftarLaporanSayaState extends State<DaftarLaporanSaya> {
                   ),
 
                   // List laporan
-                  _filteredLaporan.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                          itemCount: _filteredLaporan.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 10),
-                          itemBuilder: (context, index) {
-                            return _buildLaporanCard(
-                                _filteredLaporan[index], context);
-                          },
-                        ),
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _filteredLaporan.isEmpty
+                          ? _buildEmptyState()
+                          : ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                              itemCount: _filteredLaporan.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 10),
+                              itemBuilder: (context, index) {
+                                return _buildLaporanCard(_filteredLaporan[index], context);
+                              },
+                            ),
                 ],
               ),
             ),
@@ -179,7 +200,6 @@ class _DaftarLaporanSayaState extends State<DaftarLaporanSaya> {
         ],
       ),
     );
-    // ✅ FAB & bottomNav diurus MainScreen
   }
 
   // ─────────────────────────────────────────
