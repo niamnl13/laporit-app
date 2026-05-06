@@ -1,9 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:laporit_app/core/constants/app_colors.dart';
 import 'package:laporit_app/features/auth/login.dart';
+import 'package:laporit_app/core/services/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class ProfilScreen extends StatelessWidget {
+class ProfilScreen extends StatefulWidget {
   const ProfilScreen({super.key});
+
+  @override
+  State<ProfilScreen> createState() => _ProfilScreenState();
+}
+
+class _ProfilScreenState extends State<ProfilScreen> {
+  String _userName = 'User';
+  String _userRole = 'user';
+  int _totalLaporan = 0;
+  int _totalSelesai = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final name = prefs.getString('name') ?? 'User';
+    final role = prefs.getString('role') ?? 'user';
+    final reports = await ApiService.getMyReports();
+    setState(() {
+      _userName = name;
+      _userRole = role;
+      _totalLaporan = reports.length;
+      _totalSelesai = reports.where((r) => r['status'] == 'selesai').length;
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -190,8 +223,8 @@ class ProfilScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            const Text(
-              "Andi Pratama",
+            Text(
+              _userName,
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
@@ -199,9 +232,13 @@ class ProfilScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 3),
-            const Text(
-              "User - Marketing Department",
-              style: TextStyle(
+            Text(
+              _userRole == 'admin' 
+                ? 'Admin LaporIT' 
+                : _userRole == 'operator'
+                    ? 'Operator IT'
+                    : 'User',
+              style: const TextStyle(
                 color: Color(0xFF1DBFAA),
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -249,9 +286,9 @@ class ProfilScreen extends StatelessWidget {
         children: [
           Expanded(
             child: Column(
-              children: const [
+              children: [
                 Text(
-                  "12",
+                  _isLoading ? '...' : '$_totalLaporan', // menampilkan 2 digit dengan leading zero
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w600,
@@ -277,9 +314,9 @@ class ProfilScreen extends StatelessWidget {
           ),
           Expanded(
             child: Column(
-              children: const [
+              children: [
                 Text(
-                  "08",
+                  _isLoading ? '...' : _totalSelesai.toString().padLeft(2, '0'), // menampilkan 2 digit kalau dia 0 ya yg tertampil itu 00
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w600,

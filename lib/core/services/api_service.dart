@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:laporit_app/core/constants/app_constants.dart';
+import 'dart:io';
 
 class ApiService {
   static final String _base = AppConstants.baseUrl;
@@ -79,17 +80,35 @@ class ApiService {
     required String jenisKerusakan,
     required String deskripsi,
     String? lokasi,
+    String? judul,
+    String? priority,
+    String? nub,
+    File? foto,
   }) async {
-    final headers = await _authHeaders();
-    final response = await http.post(
+    final token = await _getToken();
+    final request = http.MultipartRequest(
+      'POST',
       Uri.parse('$_base/reports'),
-      headers: headers,
-      body: jsonEncode({
-        'jenis_kerusakan': jenisKerusakan,
-        'deskripsi': deskripsi,
-        'lokasi': lokasi,
-      }),
     );
+
+    request.headers.addAll({
+      'Accept': 'application/json',
+      'Authorization': 'Bearer $token',
+    });
+
+    request.fields['jenis_kerusakan'] = jenisKerusakan;
+    request.fields['deskripsi'] = deskripsi;
+    if (lokasi != null) request.fields['lokasi'] = lokasi;
+    if (judul != null) request.fields['judul'] = judul;
+    if (priority != null) request.fields['priority'] = priority;
+    if (nub != null) request.fields['nub'] = nub;
+
+    if (foto != null) {
+      request.files.add(await http.MultipartFile.fromPath('foto', foto.path));
+    }
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
     return jsonDecode(response.body);
   }
 
@@ -111,7 +130,7 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-
+  // =============================================
   // ADMIN ONLY: Ambil semua user
   // =============================================
 
