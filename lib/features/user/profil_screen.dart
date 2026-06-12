@@ -3,6 +3,12 @@ import 'package:laporit_app/core/constants/app_colors.dart';
 import 'package:laporit_app/features/auth/login.dart';
 import 'package:laporit_app/core/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:laporit_app/features/user/edit_profil_screen.dart';
+import 'package:laporit_app/features/user/ubah_password_screen.dart';
+import 'package:laporit_app/features/user/notifikasi_screen.dart';
+import 'package:laporit_app/features/user/bahasa_screen.dart';
+import 'package:laporit_app/features/user/tentang_aplikasi_screen.dart';
+
 
 class ProfilScreen extends StatefulWidget {
   const ProfilScreen({super.key});
@@ -101,7 +107,14 @@ class _ProfilScreenState extends State<ProfilScreen> {
                     iconBg: const Color(0xFFE8EDF7),
                     iconColor: const Color(0xFF1A2744),
                     title: "Edit Profil",
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const EditProfilScreen(),
+                        ),
+                      );
+                    },
                   ),
                   _buildMenuDivider(),
                   _buildMenuItem(
@@ -109,7 +122,14 @@ class _ProfilScreenState extends State<ProfilScreen> {
                     iconBg: const Color(0xFFE8EDF7),
                     iconColor: const Color(0xFF1A2744),
                     title: "Ubah Password",
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const UbahPasswordScreen(),
+                        ),
+                      );
+                    },
                   ),
                   _buildMenuDivider(),
                   _buildMenuItem(
@@ -118,7 +138,14 @@ class _ProfilScreenState extends State<ProfilScreen> {
                     iconColor: const Color(0xFF1A2744),
                     title: "Notifikasi",
                     trailing: _buildBadge("3"),
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotifikasiScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ]),
 
@@ -133,7 +160,14 @@ class _ProfilScreenState extends State<ProfilScreen> {
                     iconColor: const Color(0xFF1A2744),
                     title: "Bahasa",
                     subtitle: "Bahasa Indonesia",
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const BahasaScreen(),
+                        ),
+                      );
+                    },
                   ),
                   _buildMenuDivider(),
                   _buildMenuItem(
@@ -141,7 +175,14 @@ class _ProfilScreenState extends State<ProfilScreen> {
                     iconBg: const Color(0xFFE8EDF7),
                     iconColor: const Color(0xFF1A2744),
                     title: "Tentang Aplikasi",
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const TentangAplikasiScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ]),
 
@@ -181,8 +222,7 @@ class _ProfilScreenState extends State<ProfilScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(height: 44), // ruang untuk AppBar title
-            // Avatar
+            const SizedBox(height: 44),
             Stack(
               children: [
                 Container(
@@ -225,7 +265,7 @@ class _ProfilScreenState extends State<ProfilScreen> {
             const SizedBox(height: 10),
             Text(
               _userName,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
                 fontSize: 18,
@@ -233,11 +273,11 @@ class _ProfilScreenState extends State<ProfilScreen> {
             ),
             const SizedBox(height: 3),
             Text(
-              _userRole == 'admin' 
-                ? 'Admin LaporIT' 
-                : _userRole == 'operator'
-                    ? 'Operator IT'
-                    : 'User',
+              _userRole == 'admin'
+                  ? 'Admin LaporIT'
+                  : _userRole == 'operator'
+                      ? 'Operator IT'
+                      : 'User',
               style: const TextStyle(
                 color: Color(0xFF1DBFAA),
                 fontSize: 13,
@@ -288,16 +328,16 @@ class _ProfilScreenState extends State<ProfilScreen> {
             child: Column(
               children: [
                 Text(
-                  _isLoading ? '...' : '$_totalLaporan', // menampilkan 2 digit dengan leading zero
-                  style: TextStyle(
+                  _isLoading ? '...' : '$_totalLaporan',
+                  style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF1A2744),
                     height: 1,
                   ),
                 ),
-                SizedBox(height: 4),
-                Text(
+                const SizedBox(height: 4),
+                const Text(
                   "Laporan Terkirim",
                   style: TextStyle(
                     fontSize: 12,
@@ -316,16 +356,16 @@ class _ProfilScreenState extends State<ProfilScreen> {
             child: Column(
               children: [
                 Text(
-                  _isLoading ? '...' : _totalSelesai.toString().padLeft(2, '0'), // menampilkan 2 digit kalau dia 0 ya yg tertampil itu 00
-                  style: TextStyle(
+                  _isLoading ? '...' : _totalSelesai.toString().padLeft(2, '0'),
+                  style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF0F6E56),
                     height: 1,
                   ),
                 ),
-                SizedBox(height: 4),
-                Text(
+                const SizedBox(height: 4),
+                const Text(
                   "Selesai",
                   style: TextStyle(
                     fontSize: 12,
@@ -395,7 +435,6 @@ class _ProfilScreenState extends State<ProfilScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            // Icon box
             Container(
               width: 38,
               height: 38,
@@ -406,7 +445,6 @@ class _ProfilScreenState extends State<ProfilScreen> {
               child: Icon(icon, color: iconColor, size: 19),
             ),
             const SizedBox(width: 14),
-            // Title + subtitle
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -432,7 +470,6 @@ class _ProfilScreenState extends State<ProfilScreen> {
                 ],
               ),
             ),
-            // Trailing widget or default chevron
             trailing ??
                 const Icon(
                   Icons.chevron_right_rounded,
