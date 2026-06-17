@@ -3,6 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:laporit_app/core/constants/app_colors.dart';
 import 'package:laporit_app/core/services/api_service.dart';
 import 'package:laporit_app/features/auth/login.dart';
+import 'package:laporit_app/features/operator/notifikasi_operator.dart';
+import 'package:laporit_app/features/operator/panduan_operator.dart';
+import 'package:laporit_app/features/operator/daftar_tugas_operator.dart';
+import 'package:laporit_app/features/operator/riwayat_operator.dart';
+import 'package:laporit_app/features/operator/profil_operator.dart';
+import 'package:laporit_app/features/operator/tugas_operator.dart';
 
 class DashboardOperator extends StatefulWidget {
   const DashboardOperator({super.key});
@@ -16,6 +22,10 @@ class _DashboardOperatorState extends State<DashboardOperator> {
   bool _isLoading = true;
   String _operatorName = 'Operator';
   List<dynamic> _reports = [];
+  int _unreadCount = 0; // Jumlah notifikasi belum dibaca
+  Key _tugasSayaKey = UniqueKey(); // untuk paksa rebuild TugasSaya saat tab dibuka
+  Key _riwayatKey = UniqueKey(); // untuk paksa rebuild Riwayat saat tab dibuka
+
 
   // Stats
   List<dynamic> get _pending =>
@@ -37,10 +47,22 @@ class _DashboardOperatorState extends State<DashboardOperator> {
       final prefs = await SharedPreferences.getInstance();
       final name = prefs.getString('name') ?? 'Operator';
 
-      final reports = await ApiService.getAllReports();
+      final results = await Future.wait([
+        ApiService.getAllReports(),
+        ApiService.getNotifications(),
+      ]);
+
+      final reports = results[0] as List<dynamic>;
+      final notifications = results[1] as List<dynamic>;
+
+      final unread = notifications
+          .where((n) => n['is_read'] == 0 || n['is_read'] == false)
+          .length;
+
       setState(() {
         _operatorName = name;
         _reports = reports;
+        _unreadCount = unread;
         _isLoading = false;
       });
     } catch (e) {
@@ -48,47 +70,12 @@ class _DashboardOperatorState extends State<DashboardOperator> {
       _showSnackBar('Gagal memuat data', AppColors.error);
     }
   }
-
-  Future<void> _ambilTugas(int reportId) async {
-    try {
-      final result = await ApiService.updateStatus(
-        reportId: reportId,
-        status: 'proses',
-      );
-      if (result['success'] == true) {
-        _showSnackBar('Tugas berhasil diambil!', AppColors.success);
-        _loadData();
-      }
-    } catch (e) {
-      _showSnackBar('Gagal mengambil tugas', AppColors.error);
-    }
-  }
-
-  Future<void> _selesaikanTugas(int reportId) async {
-    try {
-      final now = DateTime.now().toString().substring(0, 10);
-      final result = await ApiService.updateStatus(
-        reportId: reportId,
-        status: 'selesai',
-        tglEksekusi: now,
-      );
-      if (result['success'] == true) {
-        _showSnackBar('Tugas berhasil diselesaikan!', AppColors.success);
-        _loadData();
-      }
-    } catch (e) {
-      _showSnackBar('Gagal menyelesaikan tugas', AppColors.error);
-    }
-  }
-
-  Future<void> _logout() async {
-    await ApiService.logout();
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    }
+  Future<void> _bukaNotifikasi() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NotifikasiOperator()),
+    );
+    _loadData(); // refresh badge setelah kembali
   }
 
   void _showSnackBar(String message, Color color) {
@@ -106,20 +93,14 @@ class _DashboardOperatorState extends State<DashboardOperator> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: _currentIndex == 0
-          ? FloatingActionButton(
-              onPressed: () => _showSnackBar('Fitur segera hadir!', AppColors.accent),
-              backgroundColor: AppColors.accent,
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
       body: IndexedStack(
         index: _currentIndex,
         children: [
           _buildBerandaPage(),
-          _buildTugasPage(),
-          _buildRiwayatPage(),
-          _buildProfilPage(),
+          TugasOperator(unreadCount: _unreadCount),
+          TugasSayaOperator(key: _tugasSayaKey, unreadCount: _unreadCount),// paksa rebuild saat tab dibuka
+          RiwayatOperator(key: _riwayatKey, unreadCount: _unreadCount),
+          ProfilOperator(unreadCount: _unreadCount),
         ],
       ),
       bottomNavigationBar: _buildBottomNav(),
@@ -190,23 +171,42 @@ class _DashboardOperatorState extends State<DashboardOperator> {
         Stack(
           children: [
             IconButton(
-              onPressed: () {},
+              onPressed: _bukaNotifikasi,
               icon: Icon(Icons.notifications_outlined,
                   color: AppColors.textPrimary, size: 28),
             ),
-            Positioned(
-              right: 8,
-              top: 8,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1.5),
+            if (_unreadCount > 0)
+              Positioned(
+                right: 6,
+                top: 6,
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.error,
+                    shape: _unreadCount > 9
+                        ? BoxShape.rectangle
+                        : BoxShape.circle,
+                    borderRadius: _unreadCount > 9
+                        ? BorderRadius.circular(9)
+                        : null,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: Text(
+                    _unreadCount > 99 ? '99+' : '$_unreadCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ],
@@ -374,199 +374,140 @@ class _DashboardOperatorState extends State<DashboardOperator> {
   // TUGAS BARU (laporan pending)
   // =============================================
   Widget _buildTugasBaru() {
-    final tugasBaru = _pending.take(3).toList();
+  final tugasBaru = _pending.take(3).toList();
 
-    return Column(
+  return Column(
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Tugas Baru',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          TextButton(
+            onPressed: () => setState(() => _currentIndex = 1),
+            child: Text(
+              'Lihat Semua',
+              style: TextStyle(
+                color: AppColors.accent,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      if (_isLoading)
+        Center(child: CircularProgressIndicator(color: AppColors.accent))
+      else if (tugasBaru.isEmpty)
+        _buildEmptyState('Tidak ada tugas baru')
+      else
+        ...tugasBaru.map((r) => _buildTugasBaruCard(r)),
+    ],
+  );
+}
+
+Widget _buildTugasBaruCard(Map<String, dynamic> report) {
+  final priority = report['priority'] ?? 'normal';
+  final id = report['id']?.toString() ?? '-';
+  final deskripsi = report['deskripsi'] ?? '-';
+  final lokasi = report['lokasi'] ?? '-';
+  final pelapor = report['user']?['name'] ?? '-';
+  final createdAt = report['created_at']?.toString() ?? '';
+  final timeAgo = createdAt.length > 10 ? createdAt.substring(0, 10) : createdAt;
+
+  final priorityColor = switch (priority) {
+    'gawat' => AppColors.error,
+    'tinggi' => const Color(0xFFF59E0B),
+    'rendah' => AppColors.success,
+    _ => AppColors.accent,
+  };
+
+  return Container(
+    margin: const EdgeInsets.only(bottom: 14),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Tugas Baru',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: priorityColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
               ),
-            ),
-            TextButton(
-              onPressed: () => setState(() => _currentIndex = 1),
               child: Text(
-                'Lihat Semua',
+                priority.toUpperCase(),
                 style: TextStyle(
-                  color: AppColors.accent,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
+                  fontSize: 10,
+                  color: priorityColor,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
                 ),
               ),
             ),
+            const SizedBox(width: 8),
+            Text('#ID-$id',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500)),
+            const Spacer(),
+            Text(timeAgo,
+                style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
           ],
         ),
-        const SizedBox(height: 12),
-        if (_isLoading)
-          Center(child: CircularProgressIndicator(color: AppColors.accent))
-        else if (tugasBaru.isEmpty)
-          _buildEmptyState('Tidak ada tugas baru')
-        else
-          ...tugasBaru.map((r) => _buildTugasCard(r, isPending: true)),
+        const SizedBox(height: 10),
+        Text(deskripsi,
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
+            const SizedBox(width: 4),
+            Text(lokasi,
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            const SizedBox(width: 16),
+            Icon(Icons.person_outline, size: 14, color: AppColors.textSecondary),
+            const SizedBox(width: 4),
+            Text('Pelapor: $pelapor',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          ],
+        ),
       ],
-    );
-  }
-
-  Widget _buildTugasCard(Map<String, dynamic> report,
-      {bool isPending = false}) {
-    final priority = report['priority'] ?? 'normal';
-    final priorityColor = _priorityColor(priority);
-    final id = report['id']?.toString() ?? '-';
-    final jenis = report['jenis_kerusakan'] ?? '-';
-    final deskripsi = report['deskripsi'] ?? '-';
-    final lokasi = report['lokasi'] ?? '-';
-    final pelapor = report['user']?['name'] ?? '-';
-    final createdAt = report['created_at']?.toString() ?? '';
-    final timeAgo = createdAt.length > 10 ? createdAt.substring(0, 10) : createdAt;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Priority + ID + Waktu
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: priorityColor.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        priority.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: priorityColor,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '#ID-$id',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      timeAgo,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                // Judul
-                Text(
-                  deskripsi,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 10),
-
-                // Lokasi & Pelapor
-                Row(
-                  children: [
-                    Icon(Icons.location_on_outlined,
-                        size: 14, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Text(
-                      lokasi,
-                      style: TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(width: 16),
-                    Icon(Icons.person_outline,
-                        size: 14, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Pelapor: $pelapor',
-                      style: TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Tombol Ambil Tugas
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: isPending
-                    ? () => _ambilTugas(report['id'])
-                    : () => _selesaikanTugas(report['id']),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      isPending ? AppColors.primary : AppColors.success,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  isPending ? 'Ambil Tugas' : 'Selesaikan',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    ),
+  );
+}
 
   // =============================================
   // AKSI CEPAT
   // =============================================
   Widget _buildAksiCepat() {
     final aksi = [
-      {'icon': Icons.description_outlined, 'label': 'Buat Laporan', 'color': AppColors.accent},
-      {'icon': Icons.inventory_2_outlined, 'label': 'Inventaris', 'color': const Color(0xFFF59E0B)},
+      {'icon': Icons.menu_book_outlined, 'label': 'Panduan', 'color': const Color(0xFFF59E0B)},
     ];
 
     return Column(
@@ -581,45 +522,39 @@ class _DashboardOperatorState extends State<DashboardOperator> {
           ),
         ),
         const SizedBox(height: 16),
-        Row(
+        Column(
           children: aksi.map((a) {
             final color = a['color'] as Color;
-            return Expanded(
+            return SizedBox(
+              width: double.infinity,
               child: GestureDetector(
-                onTap: () =>
-                    _showSnackBar('Fitur segera hadir!', AppColors.accent),
+                onTap: () {
+                  if (a['label'] == 'Panduan') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PanduanOperator()),
+                    );
+                  } else {
+                    _showSnackBar('Fitur segera hadir!', AppColors.accent);
+                  }
+                },
                 child: Container(
-                  margin: const EdgeInsets.only(right: 12),
+                  margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(a['icon'] as IconData,
-                            color: color, size: 24),
-                      ),
+                      Icon(a['icon'] as IconData, color: color, size: 28),
                       const SizedBox(height: 8),
                       Text(
                         a['label'] as String,
                         style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                          color: color,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -635,277 +570,25 @@ class _DashboardOperatorState extends State<DashboardOperator> {
   }
 
   // =============================================
-  // TUGAS PAGE (semua laporan pending & proses)
-  // =============================================
-  Widget _buildTugasPage() {
-    final semua = _reports
-        .where((r) => r['status'] == 'pending' || r['status'] == 'proses')
-        .toList();
-
-    return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: _loadData,
-        color: AppColors.accent,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Text(
-                'Semua Tugas',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _isLoading
-                  ? Center(
-                      child: CircularProgressIndicator(color: AppColors.accent))
-                  : semua.isEmpty
-                      ? _buildEmptyState('Tidak ada tugas')
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          itemCount: semua.length,
-                          itemBuilder: (context, index) {
-                            final r = semua[index];
-                            return _buildTugasCard(
-                              r,
-                              isPending: r['status'] == 'pending',
-                            );
-                          },
-                        ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =============================================
-  // RIWAYAT PAGE (laporan selesai)
-  // =============================================
-  Widget _buildRiwayatPage() {
-    return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: _loadData,
-        color: AppColors.accent,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Text(
-                'Riwayat Selesai',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _isLoading
-                  ? Center(
-                      child: CircularProgressIndicator(color: AppColors.accent))
-                  : _selesai.isEmpty
-                      ? _buildEmptyState('Belum ada laporan selesai')
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          itemCount: _selesai.length,
-                          itemBuilder: (context, index) {
-                            final r = _selesai[index];
-                            return _buildRiwayatCard(r);
-                          },
-                        ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRiwayatCard(Map<String, dynamic> report) {
-    final jenis = report['jenis_kerusakan'] ?? '-';
-    final deskripsi = report['deskripsi'] ?? '-';
-    final tglEksekusi = report['tgl_eksekusi'] ?? '-';
-    final id = report['id']?.toString() ?? '-';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 4,
-            height: 60,
-            decoration: BoxDecoration(
-              color: AppColors.success,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('#TK-$id',
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w600)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text('Selesai',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.success,
-                              fontWeight: FontWeight.w600)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(deskripsi,
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 6),
-                Text('Diselesaikan: $tglEksekusi',
-                    style: TextStyle(
-                        fontSize: 11, color: AppColors.textSecondary)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // =============================================
-  // PROFIL PAGE
-  // =============================================
-  Widget _buildProfilPage() {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Profil',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: AppColors.primary,
-                    child: const Icon(Icons.person,
-                        color: Colors.white, size: 32),
-                  ),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _operatorName,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        'Operator IT',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.accent,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton.icon(
-                onPressed: _logout,
-                icon: const Icon(Icons.logout_rounded),
-                label: const Text(
-                  'Keluar',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.error,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =============================================
   // BOTTOM NAV
   // =============================================
   Widget _buildBottomNav() {
     return BottomNavigationBar(
       currentIndex: _currentIndex,
-      onTap: (i) => setState(() => _currentIndex = i),
+      onTap: (i) {
+        setState(() {
+          _currentIndex = i;
+          if (i == 2) {
+            _tugasSayaKey = UniqueKey(); // paksa rebuild
+          }
+          if (i == 3) {
+            _riwayatKey = UniqueKey();
+          }
+        });
+        if (i == 0) {
+          _loadData();
+        }
+      },
       type: BottomNavigationBarType.fixed,
       selectedItemColor: AppColors.accent,
       unselectedItemColor: AppColors.textSecondary,
@@ -920,27 +603,13 @@ class _DashboardOperatorState extends State<DashboardOperator> {
         BottomNavigationBarItem(
             icon: Icon(Icons.task_outlined), label: 'Tugas'),
         BottomNavigationBarItem(
+            icon: Icon(Icons.assignment_turned_in_outlined), label: 'Tugas Saya'),
+        BottomNavigationBarItem(
             icon: Icon(Icons.history_rounded), label: 'Riwayat'),
         BottomNavigationBarItem(
             icon: Icon(Icons.person_outline), label: 'Profil'),
       ],
     );
-  }
-
-  // =============================================
-  // HELPERS
-  // =============================================
-  Color _priorityColor(String priority) {
-    switch (priority) {
-      case 'gawat':
-        return AppColors.error;
-      case 'tinggi':
-        return const Color(0xFFF59E0B);
-      case 'rendah':
-        return AppColors.success;
-      default:
-        return AppColors.accent;
-    }
   }
 
   Widget _buildEmptyState(String message) {

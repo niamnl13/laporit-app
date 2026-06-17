@@ -64,6 +64,17 @@ class ApiService {
     return data['data'] ?? [];
   }
 
+  // Tugas milik sendiri (Operator)
+  static Future<List<dynamic>> getMyTasks() async {
+    final headers = await _authHeaders();
+    final response = await http.get(
+      Uri.parse('$_base/reports/my-tasks'),
+      headers: headers,
+    );
+    final data = jsonDecode(response.body);
+    return data['data'] ?? [];
+  }
+
   // Laporan milik sendiri (User)
   static Future<List<dynamic>> getMyReports() async {
     final headers = await _authHeaders();
@@ -142,5 +153,27 @@ class ApiService {
     );
     final data = jsonDecode(response.body);
     return data['data'] ?? [];
+  }
+
+  // =============================================
+  // NOTIFICATIONS
+  // =============================================
+
+  static Future<List<dynamic>> getNotifications() async {
+    final headers = await _authHeaders();
+    final response = await http.get(
+      Uri.parse('$_base/notifications'),
+      headers: headers,
+    );
+    final data = jsonDecode(response.body);
+    return data['data'] ?? [];
+  }
+
+  static Future<void> readAllNotifications() async {
+    final headers = await _authHeaders();
+    await http.post(
+      Uri.parse('$_base/notifications/read-all'),
+      headers: headers,
+    );
   }
 }

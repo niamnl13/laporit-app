@@ -4,6 +4,8 @@ import 'package:laporit_app/features/auth/login.dart';
 import 'package:laporit_app/features/user/dashboard_user.dart';
 import 'package:laporit_app/features/user/add_laporan_baru.dart';
 import 'package:laporit_app/features/user/main_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 
 void main() {
   runApp(const MyApp());
@@ -21,6 +23,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        textTheme: GoogleFonts.poppinsTextTheme(),
       ),
       home: const LoginScreen(),
     );
