@@ -3,6 +3,7 @@ import 'package:laporit_app/features/user/dashboard_user.dart';
 import 'package:laporit_app/features/user/daftar_laporan_saya.dart';
 import 'package:laporit_app/features/user/add_laporan_baru.dart';
 import 'package:laporit_app/features/user/profil_screen.dart';
+import 'package:laporit_app/core/services/api_service.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialIndex;
@@ -14,28 +15,42 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   late int _currentIndex;
-
-  final List<Widget> _pages = const [
-    DashboardUser(),        // index 0 — Dashboard
-    DaftarLaporanSaya(),    // index 1 — Laporan
-    ProfilScreen(),         // index 2 — Profil (ganti sesuai nama class kamu)
-  ];
+  int _unreadCount = 0;
+  Key _laporanKey = UniqueKey();
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    try {
+      final notifications = await ApiService.getNotifications();
+      final unread = notifications
+          .where((n) => n['is_read'] == 0 || n['is_read'] == false)
+          .length;
+      setState(() => _unreadCount = unread);
+    } catch (e) {
+      // ignore error, biarkan badge tetap 0
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      const DashboardUser(),
+      DaftarLaporanSaya(key: _laporanKey, unreadCount: _unreadCount),
+      const ProfilScreen(),
+    ];
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: _pages,
+        children: pages,
       ),
 
-      // FAB hanya muncul di tab Laporan
       floatingActionButton: _currentIndex == 1
           ? FloatingActionButton(
               onPressed: () => Navigator.push(
@@ -51,7 +66,18 @@ class _MainScreenState extends State<MainScreen> {
 
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+            if (index == 1) {
+              _laporanKey = UniqueKey();
+              _loadUnreadCount();
+            }
+            if (index == 0) {
+              _loadUnreadCount();
+            }
+          });
+        },
         selectedItemColor: const Color(0xFF1A2744),
         unselectedItemColor: const Color(0xFF888780),
         backgroundColor: Colors.white,

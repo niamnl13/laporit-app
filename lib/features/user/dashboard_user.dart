@@ -36,15 +36,34 @@ class _DashboardUserState extends State<DashboardUser> {
     _loadData();
   }
 
+  int _unreadCount = 0;
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
       final name = prefs.getString('name') ?? 'User';
-      final reports = await ApiService.getMyReports();
+
+      final results = await Future.wait([
+        ApiService.getMyReports(),
+        ApiService.getNotifications(),
+      ]);
+
+      final reports = results[0] as List<dynamic>;
+      final notifications = results[1] as List<dynamic>;
+
+      final unread = notifications
+          .where((n) => n['is_read'] == 0 || n['is_read'] == false)
+          .length;
+      
+      print('Total notifikasi: ${notifications.length}');
+      print('Unread count: $unread');
+      print('Data notifikasi: $notifications');
+
       setState(() {
         _userName = name;
         _reports = reports;
+        _unreadCount = unread;
         _isLoading = false;
       });
     } catch (e) {
@@ -108,14 +127,44 @@ class _DashboardUserState extends State<DashboardUser> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.black87),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const NotifikasiScreen()),
-              );
-            },
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined, color: Colors.black87),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const NotifikasiScreen()),
+                  );
+                  _loadData(); // refresh badge setelah kembali
+                },
+              ),
+              if (_unreadCount > 0)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: _unreadCount > 9 ? BoxShape.rectangle : BoxShape.circle,
+                      borderRadius: _unreadCount > 9 ? BorderRadius.circular(9) : null,
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                    child: Text(
+                      _unreadCount > 99 ? '99+' : '$_unreadCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        height: 1,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(width: 8),
         ],
@@ -266,7 +315,7 @@ class _DashboardUserState extends State<DashboardUser> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => const DaftarLaporanSaya()),
+                          builder: (context) => DaftarLaporanSaya(unreadCount: _unreadCount)),
                     );
                   },
                   child: Text(

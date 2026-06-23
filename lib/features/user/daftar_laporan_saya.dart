@@ -5,7 +5,8 @@ import 'package:laporit_app/features/user/notifikasi_screen.dart';
 import 'package:laporit_app/core/services/api_service.dart';
 
 class DaftarLaporanSaya extends StatefulWidget {
-  const DaftarLaporanSaya({super.key});
+  final int unreadCount;
+  const DaftarLaporanSaya({super.key, this.unreadCount = 0});
 
   @override
   State<DaftarLaporanSaya> createState() => _DaftarLaporanSayaState();
@@ -29,9 +30,17 @@ class _DaftarLaporanSayaState extends State<DaftarLaporanSaya> {
           final status = r['status'] ?? 'pending';
           return {
             "id": '#LP-${r['id']}',
+            "rawId": r['id'],
             "judul": r['jenis_kerusakan'] ?? '-',
             "kategori": r['jenis_kerusakan'] ?? '-',
+            "deskripsi": r['deskripsi'] ?? '-',
+            "lokasi": r['lokasi'] ?? '-',
+            "nub": r['nub'] ?? '-',
+            "foto": r['foto'],
             "tanggal": r['created_at']?.toString().substring(0, 10) ?? '-',
+            "createdAtFull": r['created_at']?.toString() ?? '-',
+            "tglEksekusi": r['tgl_eksekusi']?.toString() ?? '-',
+            "rawStatus": status,
             "status": _statusLabel(status),
             "statusFilter": _statusFilter(status),
             "prioritas": (r['priority'] ?? 'normal').toUpperCase(),
@@ -228,23 +237,52 @@ class _DaftarLaporanSayaState extends State<DaftarLaporanSaya> {
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const NotifikasiScreen()),
-                    ),
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      margin: const EdgeInsets.only(right: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.12),
-                        shape: BoxShape.circle,
+                  Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const NotifikasiScreen()),
+                        ),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          margin: const EdgeInsets.only(right: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.notifications_outlined,
+                              color: Colors.white, size: 18),
+                        ),
                       ),
-                      child: const Icon(Icons.notifications_outlined,
-                          color: Colors.white, size: 18),
-                    ),
+                      if (widget.unreadCount > 0)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              shape: widget.unreadCount > 9 ? BoxShape.rectangle : BoxShape.circle,
+                              borderRadius: widget.unreadCount > 9 ? BorderRadius.circular(8) : null,
+                              border: Border.all(color: const Color(0xFF1A2744), width: 1.5),
+                            ),
+                            child: Text(
+                              widget.unreadCount > 99 ? '99+' : '${widget.unreadCount}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.w800,
+                                height: 1,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),

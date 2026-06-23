@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:laporit_app/core/constants/app_constants.dart';
-import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+
 
 class ApiService {
   static final String _base = AppConstants.baseUrl;
@@ -30,7 +31,8 @@ class ApiService {
   // =============================================
   // AUTH
   // =============================================
-  static Future<Map<String, dynamic>> login(String email, String password) async {
+  static Future<Map<String, dynamic>> login(
+      String email, String password) async {
     final response = await http.post(
       Uri.parse('$_base/login'),
       headers: {
@@ -94,7 +96,7 @@ class ApiService {
     String? judul,
     String? priority,
     String? nub,
-    File? foto,
+    XFile? foto,
   }) async {
     final token = await _getToken();
     final request = http.MultipartRequest(
@@ -115,7 +117,10 @@ class ApiService {
     if (nub != null) request.fields['nub'] = nub;
 
     if (foto != null) {
-      request.files.add(await http.MultipartFile.fromPath('foto', foto.path));
+      final bytes = await foto.readAsBytes();
+      request.files.add(
+        http.MultipartFile.fromBytes('foto', bytes, filename: foto.name),
+      );
     }
 
     final streamedResponse = await request.send();
@@ -123,7 +128,7 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  // Update status laporan (Operator & Admin)
+  // Update status laporan — method lama (tetap dipertahankan)
   static Future<Map<String, dynamic>> updateStatus({
     required int reportId,
     required String status,
@@ -135,16 +140,29 @@ class ApiService {
       headers: headers,
       body: jsonEncode({
         'status': status,
-        'tgl_eksekusi': tglEksekusi,
+        if (tglEksekusi != null) 'tgl_eksekusi': tglEksekusi,
       }),
     );
     return jsonDecode(response.body);
   }
 
+  // Update status laporan — versi baru untuk LaporanAdminScreen
+  static Future<Map<String, dynamic>> updateReportStatus(
+      dynamic reportId, String status) async {
+    final headers = await _authHeaders();
+    final response = await http.patch(
+      Uri.parse('$_base/reports/$reportId/status'),
+      headers: headers,
+      body: jsonEncode({'status': status}),
+    );
+    return jsonDecode(response.body);
+  }
+
   // =============================================
-  // ADMIN ONLY: Ambil semua user
+  // USERS (Admin only)
   // =============================================
 
+  // Ambil semua user
   static Future<List<dynamic>> getAllUsers() async {
     final headers = await _authHeaders();
     final response = await http.get(
@@ -175,5 +193,173 @@ class ApiService {
       Uri.parse('$_base/notifications/read-all'),
       headers: headers,
     );
+  }
+
+  // =============================================
+  // USER MANAGEMENT (Admin only)
+  // =============================================
+
+  // Toggle status user (aktif/non-aktif)
+  static Future<Map<String, dynamic>> toggleUserStatus(
+      dynamic userId, bool isAktif) async {
+    final headers = await _authHeaders();
+    final response = await http.patch(
+      Uri.parse('$_base/users/$userId/status'),
+      headers: headers,
+      body: jsonEncode({'is_aktif': isAktif}),
+    );
+    return jsonDecode(response.body);
+  }
+
+  // Update user (Admin)
+  static Future<Map<String, dynamic>> updateUser(
+      dynamic userId, Map<String, dynamic> data) async {
+    final headers = await _authHeaders();
+    final response = await http.put(
+      Uri.parse('$_base/users/$userId'),
+      headers: headers,
+      body: jsonEncode(data),
+    );
+    return jsonDecode(response.body);
+  }
+
+  // Buat user baru (Admin)
+  static Future<Map<String, dynamic>> createUser(
+      Map<String, dynamic> data) async {
+    final headers = await _authHeaders();
+    final response = await http.post(
+      Uri.parse('$_base/users'),
+      headers: headers,
+      body: jsonEncode(data),
+    );
+    return jsonDecode(response.body);
+  }
+
+  // Hapus user (Admin)
+  static Future<Map<String, dynamic>> deleteUser(dynamic userId) async {
+    final headers = await _authHeaders();
+    final response = await http.delete(
+      Uri.parse('$_base/users/$userId'),
+      headers: headers,
+    );
+    return jsonDecode(response.body);
+  }
+  
+  // Ambil data user saat ini (untuk halaman profile)
+  static Future<Map<String, dynamic>> getCurrentUser() async {
+    final headers = await _authHeaders();
+    final response = await http.get(
+      Uri.parse('$_base/user'),
+      headers: headers,
+    );
+    return jsonDecode(response.body);
+  }
+
+  // Update profile (User)
+  static Future<Map<String, dynamic>> updateProfile({
+    required String name,
+    required String email,
+    String? nip,
+  }) async {
+    final headers = await _authHeaders();
+    final response = await http.put(
+      Uri.parse('$_base/profile'),
+      headers: headers,
+      body: jsonEncode({
+        'name': name,
+        'email': email,
+        'nip': nip,
+      }),
+    );
+    return jsonDecode(response.body);
+  }
+
+  // Ganti password (User)
+  static Future<Map<String, dynamic>> changePassword({
+    required String oldPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
+    final headers = await _authHeaders();
+    final response = await http.post(
+      Uri.parse('$_base/change-password'),
+      headers: headers,
+      body: jsonEncode({
+        'old_password': oldPassword,
+        'new_password': newPassword,
+        'new_password_confirmation': newPasswordConfirmation,
+      }),
+    );
+    return jsonDecode(response.body);
+  }
+
+  // =============================================
+  // KATEGORI
+  // =============================================
+
+  static Future<List<dynamic>> getKategoris() async {
+    final headers = await _authHeaders();
+    final response = await http.get(
+      Uri.parse('$_base/kategoris'),
+      headers: headers,
+    );
+    final data = jsonDecode(response.body);
+    return data['data'] ?? [];
+  }
+
+  // Buat kategori baru (Admin)
+  static Future<Map<String, dynamic>> createKategori(String nama) async {
+    final headers = await _authHeaders();
+    final response = await http.post(
+      Uri.parse('$_base/kategoris'),
+      headers: headers,
+      body: jsonEncode({'nama': nama}),
+    );
+    return jsonDecode(response.body);
+  }
+
+  // Update kategori (Admin)
+  static Future<Map<String, dynamic>> updateKategori(dynamic id, String nama) async {
+    final headers = await _authHeaders();
+    final response = await http.put(
+      Uri.parse('$_base/kategoris/$id'),
+      headers: headers,
+      body: jsonEncode({'nama': nama}),
+    );
+    return jsonDecode(response.body);
+  }
+
+  // Hapus kategori (Admin)
+  static Future<Map<String, dynamic>> deleteKategori(dynamic id) async {
+    final headers = await _authHeaders();
+    final response = await http.delete(
+      Uri.parse('$_base/kategoris/$id'),
+      headers: headers,
+    );
+    return jsonDecode(response.body);
+  }
+
+  // =============================================
+  // SETTINGS
+  // =============================================
+
+  static Future<Map<String, dynamic>> getSettings() async {
+    final headers = await _authHeaders();
+    final response = await http.get(
+      Uri.parse('$_base/settings'),
+      headers: headers,
+    );
+    return jsonDecode(response.body);
+  }
+
+  // Update settings (Admin)
+  static Future<Map<String, dynamic>> updateSettings(Map<String, dynamic> data) async {
+    final headers = await _authHeaders();
+    final response = await http.put(
+      Uri.parse('$_base/settings'),
+      headers: headers,
+      body: jsonEncode(data),
+    );
+    return jsonDecode(response.body);
   }
 }

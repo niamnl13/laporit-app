@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:laporit_app/core/constants/app_colors.dart';
 import 'package:laporit_app/core/services/api_service.dart';
-import 'dart:io'; // File untuk handling lampiran foto/video
 import 'package:image_picker/image_picker.dart'; // Untuk memilih gambar/video dari galeri atau kamera
+import 'package:flutter/foundation.dart';
 
 class AddLaporanBaru extends StatefulWidget {
   const AddLaporanBaru({super.key});
@@ -20,7 +20,8 @@ class _AddLaporanBaruState extends State<AddLaporanBaru> {
   String? selectedKategori;
   String selectedPrioritas = "Urgent";
   bool _isLoading = false;
-  File? _selectedImage;
+  final List<XFile> _fotos = [];
+  final ImagePicker _picker = ImagePicker();
 
   final List<String> kategoriList = [
     "Kerusakan Jaringan",
@@ -335,44 +336,58 @@ class _AddLaporanBaruState extends State<AddLaporanBaru> {
 
             const SizedBox(height: 24),
 
-            // ── Lampiran Foto / Video ──
+            // Lampiran Foto / Video
             _buildLabel("LAMPIRAN FOTO / VIDEO"),
             const SizedBox(height: 12),
-            // Kalau gambar sudah dipilih, tampilan opsinya berubah jadi preview dengan tombol hapus, kalau belum ada tampilannya dua opsi untuk pilih dari kamera atau galeri
-            if (_selectedImage != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  children: [
-                    Image.file(
-                      _selectedImage!,
-                      width: double.infinity,
-                      height: 150,
-                      fit: BoxFit.cover,
-                    ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: GestureDetector(
-                        onTap: () => setState(() => _selectedImage = null),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
+            Row(
+              children: [
+                // Foto yang sudah dipilih
+                for (int i = 0; i < _fotos.length; i++)
+                  Stack(
+                    children: [
+                      FutureBuilder<Uint8List>(
+                        future: _fotos[i].readAsBytes(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return const SizedBox(width: 100, height: 100);
+                          }
+                          return Container(
+                            width: 100,
+                            height: 100,
+                            margin: const EdgeInsets.only(right: 10),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              image: DecorationImage(
+                                image: MemoryImage(snapshot.data!),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 14,
+                        child: GestureDetector(
+                          onTap: () => setState(() => _fotos.removeAt(i)),
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close, color: Colors.white, size: 14),
                           ),
-                          child: const Icon(Icons.close, color: Colors.white, size: 16),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              )
-            else
-              Row(
-                children: [
+                    ],
+                  ),
+
+                // Tombol tambah foto (hanya tampil kalau belum 2 foto)
+                if (_fotos.length < 2)
                   GestureDetector(
-                    onTap: () => _pickImage(ImageSource.camera), // untuk membuka kamera
+                    onTap: () => _showPilihFotoDialog(),
                     child: Container(
                       width: 100,
                       height: 100,
@@ -384,54 +399,28 @@ class _AddLaporanBaruState extends State<AddLaporanBaru> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.camera_alt_outlined,
-                              size: 30, color: Colors.grey.shade400),
+                          Icon(Icons.add_photo_alternate_outlined,
+                              size: 28, color: Colors.grey.shade400),
                           const SizedBox(height: 6),
-                          Text("Kamera",
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade500,
-                                fontWeight: FontWeight.w500,
-                              )),
+                          Text(
+                            "Unggah Foto",
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => _pickImage(ImageSource.gallery), // untuk membuka galeri
-                      child: Container(
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1A2744),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.cloud_upload_outlined,
-                                size: 28, color: Colors.white70),
-                            SizedBox(height: 6),
-                            Text("Unggah dari Galeri",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w500,
-                                )),
-                            SizedBox(height: 2),
-                            Text("PNG, JPG, MP4 up to 10MB",
-                                style: TextStyle(fontSize: 10, color: Colors.white54)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-            const SizedBox(height: 36),
-
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '*Maksimal 2 foto dalam format JPG/PNG',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+            ),
             // ── Tombol Kirim Laporan ──
             SizedBox(
               width: double.infinity,
@@ -462,7 +451,7 @@ class _AddLaporanBaruState extends State<AddLaporanBaru> {
                       judul: _judulController.text, // kirim judul laporan ke API
                       priority: _convertPriority(selectedPrioritas), // prioritas dikonversi ke bahasa Indonesia sesuai API
                       nub: _nubController.text, // kirim NUB (Nomor Unit Barang) ke API
-                      foto: _selectedImage, // kirim file gambar/video ke API
+                      foto: _fotos.isNotEmpty ? _fotos.first : null, // kirim foto pertama jika ada, atau null kalau tidak ada
                     );
                     
                     if (result['success'] == true) {
@@ -537,8 +526,12 @@ class _AddLaporanBaruState extends State<AddLaporanBaru> {
   }
 
   // Fungsi untuk memilih gambar/video dari kamera atau galeri
-  final ImagePicker _picker = ImagePicker();
   Future<void> _pickImage(ImageSource source) async {
+    if (_fotos.length >= 2) {
+      _showSnackBar('Maksimal 2 foto');
+      return;
+    }
+
     final XFile? image = await _picker.pickImage(
       source: source,
       maxWidth: 1024,
@@ -546,8 +539,62 @@ class _AddLaporanBaruState extends State<AddLaporanBaru> {
       imageQuality: 80,
     );
     if (image != null) {
-      setState(() => _selectedImage = File(image.path));
+      setState(() => _fotos.add(image));
     }
+  }
+
+  void _showPilihFotoDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Pilih Foto',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.camera_alt_outlined, color: AppColors.primary),
+              ),
+              title: const Text('Kamera', style: TextStyle(fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.photo_library_outlined, color: Colors.blue),
+              ),
+              title: const Text('Galeri', style: TextStyle(fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // Fungsi untuk mengonversi tingkat prioritas ke format yang sesuai dengan API karena di Api bhs indonesia

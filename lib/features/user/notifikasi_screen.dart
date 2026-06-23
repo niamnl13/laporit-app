@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:laporit_app/core/services/api_service.dart';
 
 class NotifikasiScreen extends StatefulWidget {
   const NotifikasiScreen({super.key});
@@ -8,88 +9,69 @@ class NotifikasiScreen extends StatefulWidget {
 }
 
 class _NotifikasiScreenState extends State<NotifikasiScreen> {
-  final List<Map<String, dynamic>> _notifikasiBaru = [
-    {
-      "icon": Icons.update,
-      "iconBg": Color(0xFF0A9396),
-      "judul": "Status Laporan Diperbarui",
-      "pesan":
-          "Laporan perbaikan jaringan IT di Ruang Rapat A telah berubah status menjadi ",
-      "highlight": "Diproses.",
-      "waktu": "2 menit yang lalu",
-      "isRead": false,
-      "hasDetail": false,
-    },
-    {
-      "icon": Icons.support_agent,
-      "iconBg": Color(0xFF0A2647),
-      "judul": "Pesan Baru dari Operator",
-      "pesan":
-          '"Halo Bpk. Budi, teknisi kami sedang menuju lokasi untuk pengecekan hardware. Mohon standby."',
-      "highlight": "",
-      "waktu": "15 menit yang lalu",
-      "isRead": false,
-      "hasDetail": false,
-    },
-  ];
+  bool _isLoading = true;
+  List<dynamic> _notifications = [];
 
-  final List<Map<String, dynamic>> _notifikasiLama = [
-    {
-      "icon": Icons.description_outlined,
-      "iconBg": Color(0xFFE5E7EB),
-      "iconColor": Color(0xFF6B7280),
-      "judul": "Tanda Terima Laporan",
-      "pesan":
-          'Laporan #IT-99283 "Kerusakan Monitor" telah diterima oleh sistem kami.',
-      "highlight": "",
-      "waktu": "3 jam yang lalu",
-      "isRead": true,
-      "hasDetail": true,
-    },
-    {
-      "icon": Icons.check_circle_outline,
-      "iconBg": Color(0xFFE5E7EB),
-      "iconColor": Color(0xFF6B7280),
-      "judul": "Laporan Selesai",
-      "pesan":
-          "Laporan penggantian toner printer di Lantai 4 telah ditandai sebagai selesai oleh teknisi.",
-      "highlight": "",
-      "waktu": "Kemarin, 14:20",
-      "isRead": true,
-      "hasDetail": false,
-    },
-    {
-      "icon": Icons.notifications_outlined,
-      "iconBg": Color(0xFFE5E7EB),
-      "iconColor": Color(0xFF6B7280),
-      "judul": "Pemeliharaan Sistem",
-      "pesan":
-          "Pemberitahuan: Aplikasi Lapor IT akan mengalami downtime pemeliharaan malam ini pukul 23:00.",
-      "highlight": "",
-      "waktu": "2 hari yang lalu",
-      "isRead": true,
-      "hasDetail": false,
-    },
-  ];
-
-  bool _isRefreshing = false;
-
-  Future<void> _onRefresh() async {
-    setState(() => _isRefreshing = true);
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() => _isRefreshing = false);
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
   }
 
-  void _tandaiSemuaDibaca() {
-    setState(() {
-      for (var n in _notifikasiBaru) {
-        n["isRead"] = true;
-      }
-    });
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      final notifications = await ApiService.getNotifications();
+      setState(() {
+        _notifications = notifications ?? [];
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _notifications = [];
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _tandaiSemuaDibaca() async {
+    await ApiService.readAllNotifications();
+    _loadData();
+  }
+
+  String _timeAgo(String? createdAt) {
+    if (createdAt == null) return '-';
+    final now = DateTime.now();
+    final created = DateTime.tryParse(createdAt);
+    if (created == null) return '-';
+    final diff = now.difference(created);
+    if (diff.inMinutes < 60) return '${diff.inMinutes} menit yang lalu';
+    if (diff.inHours < 24) return '${diff.inHours} jam yang lalu';
+    if (diff.inDays == 1) return 'Kemarin';
+    return '${diff.inDays} hari yang lalu';
+  }
+
+  IconData _getIcon(String tipe) {
+    switch (tipe) {
+      case 'status': return Icons.update;
+      case 'tugas': return Icons.support_agent;
+      default: return Icons.notifications_outlined;
+    }
+  }
+
+  Color _getIconBg(String tipe) {
+    switch (tipe) {
+      case 'status': return const Color(0xFF0A9396);
+      case 'tugas': return const Color(0xFF0A2647);
+      default: return const Color(0xFF6B7280);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final terbaru = _notifications.where((n) => n['is_read'] == 0 || n['is_read'] == false).toList();
+    final lama = _notifications.where((n) => n['is_read'] == 1 || n['is_read'] == true).toList();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -122,85 +104,70 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _onRefresh,
+        onRefresh: _loadData,
         color: const Color(0xFF0A9396),
-        child: ListView(
-          padding: const EdgeInsets.only(top: 8, bottom: 40),
-          children: [
-            // ── Label Memperbarui ──
-            if (_isRefreshing)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Color(0xFF0A9396),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: Color(0xFF0A9396)))
+            : _notifications.isEmpty
+                ? _buildEmptyState()
+                : ListView(
+                    padding: const EdgeInsets.only(top: 8, bottom: 40),
+                    children: [
+                      ...terbaru.map((notif) => _buildNotifBaru(notif)),
+                      if (lama.isNotEmpty)
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          child: Text(
+                            "TERDAHULU",
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF9CA3AF),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ...lama.map((notif) => _buildNotifLama(notif)),
+                      const SizedBox(height: 24),
+                      Column(
+                        children: [
+                          Icon(Icons.done_all_rounded,
+                              size: 36, color: Colors.grey.shade300),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Semua notifikasi telah diperiksa",
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade400,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      "MEMPERBARUI...",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF0A9396),
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            // ── Notifikasi Baru ──
-            ..._notifikasiBaru.map((notif) => _buildNotifBaru(notif)),
-
-            // ── Label Terdahulu ──
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                "TERDAHULU",
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF9CA3AF),
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-
-            // ── Notifikasi Lama ──
-            ..._notifikasiLama.map((notif) => _buildNotifLama(notif)),
-
-            // ── Footer Semua Sudah Dibaca ──
-            const SizedBox(height: 24),
-            Column(
-              children: [
-                Icon(Icons.done_all_rounded,
-                    size: 36, color: Colors.grey.shade300),
-                const SizedBox(height: 8),
-                Text(
-                  "Semua notifikasi telah diperiksa",
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade400,
+                      const SizedBox(height: 24),
+                    ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
       ),
     );
   }
 
-  // ── Notifikasi Baru (belum dibaca) ──
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.notifications_off_outlined, size: 56, color: Colors.grey.shade300),
+          const SizedBox(height: 12),
+          Text(
+            'Tidak ada notifikasi',
+            style: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildNotifBaru(Map<String, dynamic> notif) {
+    final tipe = notif['tipe'] ?? 'informasi';
     return Container(
       margin: const EdgeInsets.fromLTRB(0, 0, 0, 1),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
@@ -208,30 +175,26 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Icon
           Container(
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: notif["iconBg"],
+              color: _getIconBg(tipe),
               shape: BoxShape.circle,
             ),
-            child: Icon(notif["icon"], color: Colors.white, size: 22),
+            child: Icon(_getIcon(tipe), color: Colors.white, size: 22),
           ),
           const SizedBox(width: 14),
-
-          // Konten
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Judul + Dot
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
                       child: Text(
-                        notif["judul"],
+                        notif['judul'] ?? '-',
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
@@ -239,57 +202,29 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                         ),
                       ),
                     ),
-                    if (!notif["isRead"])
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF0A9396),
-                          shape: BoxShape.circle,
-                        ),
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF0A9396),
+                        shape: BoxShape.circle,
                       ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 6),
-
-                // Pesan
-                if (notif["highlight"] != null &&
-                    notif["highlight"].toString().isNotEmpty)
-                  RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF374151),
-                          height: 1.5),
-                      children: [
-                        TextSpan(text: notif["pesan"]),
-                        TextSpan(
-                          text: notif["highlight"],
-                          style: const TextStyle(
-                            color: Color(0xFF0A9396),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  Text(
-                    notif["pesan"],
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF374151),
-                      height: 1.5,
-                    ),
-                  ),
-
-                const SizedBox(height: 8),
-
-                // Waktu
                 Text(
-                  notif["waktu"],
+                  notif['pesan'] ?? '-',
                   style: const TextStyle(
-                      fontSize: 12, color: Color(0xFF9CA3AF)),
+                    fontSize: 13,
+                    color: Color(0xFF374151),
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _timeAgo(notif['created_at']),
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
                 ),
               ],
             ),
@@ -299,8 +234,8 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
     );
   }
 
-  // ── Notifikasi Lama (sudah dibaca) ──
   Widget _buildNotifLama(Map<String, dynamic> notif) {
+    final tipe = notif['tipe'] ?? 'informasi';
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       padding: const EdgeInsets.all(16),
@@ -311,27 +246,22 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Icon
           Container(
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: notif["iconBg"],
+              color: const Color(0xFFE5E7EB),
               shape: BoxShape.circle,
             ),
-            child: Icon(notif["icon"],
-                color: notif["iconColor"] ?? const Color(0xFF6B7280),
-                size: 20),
+            child: Icon(_getIcon(tipe), color: const Color(0xFF6B7280), size: 20),
           ),
           const SizedBox(width: 14),
-
-          // Konten
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  notif["judul"],
+                  notif['judul'] ?? '-',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -340,7 +270,7 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  notif["pesan"],
+                  notif['pesan'] ?? '-',
                   style: const TextStyle(
                     fontSize: 13,
                     color: Color(0xFF6B7280),
@@ -348,34 +278,9 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Text(
-                      notif["waktu"],
-                      style: const TextStyle(
-                          fontSize: 12, color: Color(0xFF9CA3AF)),
-                    ),
-                    if (notif["hasDetail"] == true) ...[
-                      const Text(
-                        "  •  ",
-                        style: TextStyle(
-                            fontSize: 12, color: Color(0xFF9CA3AF)),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          // TODO: Navigasi ke detail laporan
-                        },
-                        child: const Text(
-                          "Lihat Detail",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF0A9396),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                Text(
+                  _timeAgo(notif['created_at']),
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
                 ),
               ],
             ),

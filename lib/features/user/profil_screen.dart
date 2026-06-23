@@ -20,8 +20,10 @@ class ProfilScreen extends StatefulWidget {
 class _ProfilScreenState extends State<ProfilScreen> {
   String _userName = 'User';
   String _userRole = 'user';
+  String _nip = '-';
   int _totalLaporan = 0;
   int _totalSelesai = 0;
+  int _unreadCount = 0;
   bool _isLoading = true;
 
   @override
@@ -34,12 +36,28 @@ class _ProfilScreenState extends State<ProfilScreen> {
     final prefs = await SharedPreferences.getInstance();
     final name = prefs.getString('name') ?? 'User';
     final role = prefs.getString('role') ?? 'user';
-    final reports = await ApiService.getMyReports();
+
+    final results = await Future.wait([
+      ApiService.getMyReports(),
+      ApiService.getNotifications(),
+      ApiService.getCurrentUser(),
+    ]);
+
+    final reports = results[0] as List<dynamic>;
+    final notifications = results[1] as List<dynamic>;
+    final userData = results[2] as Map<String, dynamic>;
+
+    final unread = notifications
+        .where((n) => n['is_read'] == 0 || n['is_read'] == false)
+        .length;
+
     setState(() {
       _userName = name;
       _userRole = role;
       _totalLaporan = reports.length;
       _totalSelesai = reports.where((r) => r['status'] == 'selesai').length;
+      _unreadCount = unread;
+      _nip = userData['nip']?.toString() ?? '-';
       _isLoading = false;
     });
   }
@@ -107,13 +125,14 @@ class _ProfilScreenState extends State<ProfilScreen> {
                     iconBg: const Color(0xFFE8EDF7),
                     iconColor: const Color(0xFF1A2744),
                     title: "Edit Profil",
-                    onTap: () {
-                      Navigator.push(
+                    onTap: () async {
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => const EditProfilScreen(),
                         ),
                       );
+                      _loadData(); // refresh data setelah kembali dari edit profil
                     },
                   ),
                   _buildMenuDivider(),
@@ -137,14 +156,15 @@ class _ProfilScreenState extends State<ProfilScreen> {
                     iconBg: const Color(0xFFE8EDF7),
                     iconColor: const Color(0xFF1A2744),
                     title: "Notifikasi",
-                    trailing: _buildBadge("3"),
-                    onTap: () {
-                      Navigator.push(
+                    trailing: _unreadCount > 0 ? _buildBadge('$_unreadCount') : null,
+                    onTap: () async {
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => const NotifikasiScreen(),
                         ),
                       );
+                      _loadData(); // refresh badge setelah kembali
                     },
                   ),
                 ]),
@@ -295,9 +315,9 @@ class _ProfilScreenState extends State<ProfilScreen> {
                   width: 0.5,
                 ),
               ),
-              child: const Text(
-                "NIP: 199208242023011002",
-                style: TextStyle(
+              child: Text(
+                "NIP: $_nip",
+                style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 11,
                   letterSpacing: 0.3,
